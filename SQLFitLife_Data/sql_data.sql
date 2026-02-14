@@ -1,6 +1,15 @@
-
 USE fitlife_gym;
+
+CREATE TABLE IF NOT EXISTS member_workout_details (
+    detail_id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT,
+    program_name VARCHAR(100),
+    exercises TEXT,
+    FOREIGN KEY (member_id) REFERENCES members(member_id)
+);
+
 SET FOREIGN_KEY_CHECKS = 0;
+TRUNCATE TABLE member_workout_details;
 TRUNCATE TABLE trainer_payouts;
 TRUNCATE TABLE payments;
 TRUNCATE TABLE sessions;
@@ -14,18 +23,15 @@ TRUNCATE TABLE trainers;
 TRUNCATE TABLE members;
 SET FOREIGN_KEY_CHECKS = 1;
 
-
 INSERT INTO membership_type (type_name, monthly_fee, perks) VALUES
 ('Gold', 2500.00, 'Unlimited classes, Priority booking'),
 ('Silver', 1500.00, 'Limited classes, Standard booking');
-
 
 INSERT INTO membership_plan (membership_type_id, plan_name, duration_months, price) VALUES
 (1,'Monthly',1,2500.00),
 (2,'Monthly',1,1500.00),
 (1,'Annual',12,30000.00),
 (2,'Annual',12,18000.00);
-
 
 INSERT INTO members (member_id, full_name, phone, email, join_date) VALUES
 (1,'Dingdong Dantes','0917-100-0001','dingdongdantes@example.com','2024-01-15'),
@@ -54,6 +60,32 @@ INSERT INTO members (member_id, full_name, phone, email, join_date) VALUES
 (24,'Ruru Madrid','0917-100-0024','rurumadrid@example.com','2024-03-01'),
 (25,'Bianca Umali','0917-100-0025','biancaumali@example.com','2024-04-01');
 
+INSERT INTO member_workout_details (member_id, program_name, exercises) VALUES
+(1, 'Weight Loss', 'Treadmill (20 mins), Squats (3 sets, 15 reps)'),
+(2, 'Muscle Gain', 'Bench Press (4 sets, 10 reps), Deadlift (3 sets, 8 reps)'),
+(3, 'Cardio Blast', 'Jump Rope (15 mins)'),
+(4, 'Yoga Flow', 'Sun Salutation (10 reps)'),
+(5, 'Powerlifting', 'Back Squat (5 sets, 5 reps)'),
+(6, 'Full Body', 'Pushups (3 sets, 20 reps)'),
+(7, 'Endurance', 'Cycling (45 mins)'),
+(8, 'Abs Core', 'Plank (3 mins)'),
+(9, 'Boxer Routine', 'Heavy Bag (15 mins)'),
+(10, 'Senior Fit', 'Walking (30 mins)'),
+(11, 'HIIT', 'Burpees (4 sets, 20 reps)'),
+(12, 'Leg Day', 'Leg Press (4 sets, 12 reps)'),
+(13, 'Pull Day', 'Pullups (3 sets, 8 reps)'),
+(14, 'Push Day', 'Shoulder Press (3 sets, 10 reps)'),
+(15, 'Swimming', 'Laps (20 mins)'),
+(16, 'Marathon Prep', 'Run (10km)'),
+(17, 'Calisthenics', 'Muscle Ups (3 sets, 5 reps)'),
+(18, 'Quick Burn', 'Jumping Jacks (100 reps)'),
+(19, 'Rehab', 'Stretching (15 mins)'),
+(20, 'Zumba', 'Dance (60 mins)'),
+(21, 'Hypertrophy', 'Bicep Curls (4 sets, 15 reps)'),
+(22, 'Explosive', 'Box Jumps (3 sets, 10 reps)'),
+(23, 'Kettlebell', 'Swings (4 sets, 20 reps)'),
+(24, 'Pilates', 'Mat work (45 mins)'),
+(25, 'Arm Day', 'Tricep Dips (3 sets, 12 reps)');
 
 INSERT INTO trainers (trainer_id, full_name, phone, email, hire_date) VALUES
 (1,'Alex Cruz','0918-200-0001','alexcruz@fitlife.com','2023-01-01'),
@@ -62,62 +94,59 @@ INSERT INTO trainers (trainer_id, full_name, phone, email, hire_date) VALUES
 (4,'Dina Lopez','0921-200-0004','dinalopez@fitlife.com','2023-01-01'),
 (5,'Ethan Lim','0922-200-0005','ethanlim@fitlife.com','2023-01-01');
 
-
 INSERT INTO service_type (service_type_id, service_name, description) VALUES
-(1,'Abs Core','Imported from workout_programs'),
-(2,'Arm Day','Imported from workout_programs'),
-(3,'Boxer Routine','Imported from workout_programs'),
-(4,'Calisthenics','Imported from workout_programs'),
-(5,'Cardio Blast','Imported from workout_programs'),
-(6,'Endurance','Imported from workout_programs'),
-(7,'Explosive','Imported from workout_programs'),
-(8,'Full Body','Imported from workout_programs'),
-(9,'HIIT','Imported from workout_programs'),
-(10,'Hypertrophy','Imported from workout_programs'),
-(11,'Kettlebell','Imported from workout_programs'),
-(12,'Leg Day','Imported from workout_programs'),
-(13,'Marathon Prep','Imported from workout_programs'),
-(14,'Muscle Gain','Imported from workout_programs'),
-(15,'Pilates','Imported from workout_programs'),
-(16,'Powerlifting','Imported from workout_programs'),
-(17,'Pull Day','Imported from workout_programs'),
-(18,'Push Day','Imported from workout_programs'),
-(19,'Quick Burn','Imported from workout_programs'),
-(20,'Rehab','Imported from workout_programs'),
-(21,'Senior Fit','Imported from workout_programs'),
-(22,'Swimming','Imported from workout_programs'),
-(23,'Weight Loss','Imported from workout_programs'),
-(24,'Yoga Flow','Imported from workout_programs'),
-(25,'Zumba','Imported from workout_programs');
-
+(1,'Abs Core','Core strengthening focus'),
+(2,'Arm Day','Bicep and Tricep focus'),
+(3,'Boxer Routine','Boxing and conditioning'),
+(4,'Calisthenics','Bodyweight training'),
+(5,'Cardio Blast','High intensity cardio'),
+(6,'Endurance','Stamina and long-form exercise'),
+(7,'Explosive','Plyometrics and power'),
+(8,'Full Body','Comprehensive muscle engagement'),
+(9,'HIIT','High Intensity Interval Training'),
+(10,'Hypertrophy','Muscle growth focus'),
+(11,'Kettlebell','Functional weighted movement'),
+(12,'Leg Day','Lower body strength'),
+(13,'Marathon Prep','Running and distance prep'),
+(14,'Muscle Gain','Strength and mass focus'),
+(15,'Pilates','Control and flexibility'),
+(16,'Powerlifting','Heavy lifting focus'),
+(17,'Pull Day','Back and bicep focus'),
+(18,'Push Day','Chest and tricep focus'),
+(19,'Quick Burn','Short, high-intensity workout'),
+(20,'Rehab','Recovery and mobility'),
+(21,'Senior Fit','Low impact for seniors'),
+(22,'Swimming','Water-based cardio'),
+(23,'Weight Loss','Fat burning focus'),
+(24,'Yoga Flow','Flexibility and mindfulness'),
+(25,'Zumba','Dance-based cardio');
 
 INSERT INTO classes (class_id, class_name, service_type_id, trainer_id, starts_at, duration_minutes, capacity, location) VALUES
-(1,'Abs Core Class',1,1,'2026-02-15 06:00:00',60,20,'Main Studio'),
-(2,'Arm Day Class',2,2,'2026-02-15 07:00:00',60,20,'Main Studio'),
-(3,'Boxer Routine Class',3,3,'2026-02-15 08:00:00',60,20,'Main Studio'),
-(4,'Calisthenics Class',4,4,'2026-02-15 09:00:00',60,20,'Main Studio'),
-(5,'Cardio Blast Class',5,5,'2026-02-15 10:00:00',60,20,'Main Studio'),
-(6,'Endurance Class',6,1,'2026-02-15 11:00:00',60,20,'Main Studio'),
-(7,'Explosive Class',7,2,'2026-02-15 12:00:00',60,20,'Main Studio'),
-(8,'Full Body Class',8,3,'2026-02-15 13:00:00',60,20,'Main Studio'),
-(9,'HIIT Class',9,4,'2026-02-15 14:00:00',60,20,'Main Studio'),
-(10,'Hypertrophy Class',10,5,'2026-02-15 15:00:00',60,20,'Main Studio'),
-(11,'Kettlebell Class',11,1,'2026-02-16 06:00:00',60,20,'Main Studio'),
-(12,'Leg Day Class',12,2,'2026-02-16 07:00:00',60,20,'Main Studio'),
-(13,'Marathon Prep Class',13,3,'2026-02-16 08:00:00',60,20,'Main Studio'),
-(14,'Muscle Gain Class',14,4,'2026-02-16 09:00:00',60,20,'Main Studio'),
-(15,'Pilates Class',15,5,'2026-02-16 10:00:00',60,20,'Main Studio'),
-(16,'Powerlifting Class',16,1,'2026-02-16 11:00:00',60,20,'Main Studio'),
-(17,'Pull Day Class',17,2,'2026-02-16 12:00:00',60,20,'Main Studio'),
-(18,'Push Day Class',18,3,'2026-02-16 13:00:00',60,20,'Main Studio'),
-(19,'Quick Burn Class',19,4,'2026-02-16 14:00:00',60,20,'Main Studio'),
-(20,'Rehab Class',20,5,'2026-02-16 15:00:00',60,20,'Main Studio'),
-(21,'Senior Fit Class',21,1,'2026-02-17 06:00:00',60,20,'Main Studio'),
-(22,'Swimming Class',22,2,'2026-02-17 07:00:00',60,20,'Main Studio'),
-(23,'Weight Loss Class',23,3,'2026-02-17 08:00:00',60,20,'Main Studio'),
-(24,'Yoga Flow Class',24,4,'2026-02-17 09:00:00',60,20,'Main Studio'),
-(25,'Zumba Class',25,5,'2026-02-17 10:00:00',60,20,'Main Studio');
-
+(1, 'Weight Loss Class', 23, 1, '2026-02-15 06:00:00', 60, 20, 'Main Studio'),
+(2, 'Muscle Gain Class', 14, 2, '2026-02-15 07:00:00', 60, 20, 'Main Studio'),
+(3, 'Cardio Blast Class', 5, 3, '2026-02-15 08:00:00', 60, 20, 'Main Studio'),
+(4, 'Yoga Flow Class', 24, 4, '2026-02-15 09:00:00', 60, 20, 'Main Studio'),
+(5, 'Powerlifting Class', 16, 5, '2026-02-15 10:00:00', 60, 20, 'Main Studio'),
+(6, 'Full Body Class', 8, 1, '2026-02-15 11:00:00', 60, 20, 'Main Studio'),
+(7, 'Endurance Class', 6, 2, '2026-02-15 12:00:00', 60, 20, 'Main Studio'),
+(8, 'Abs Core Class', 1, 3, '2026-02-15 13:00:00', 60, 20, 'Main Studio'),
+(9, 'Boxer Routine Class', 3, 4, '2026-02-15 14:00:00', 60, 20, 'Main Studio'),
+(10, 'Senior Fit Class', 21, 5, '2026-02-15 15:00:00', 60, 20, 'Main Studio'),
+(11, 'HIIT Class', 9, 1, '2026-02-16 06:00:00', 60, 20, 'Main Studio'),
+(12, 'Leg Day Class', 12, 2, '2026-02-16 07:00:00', 60, 20, 'Main Studio'),
+(13, 'Pull Day Class', 17, 3, '2026-02-16 08:00:00', 60, 20, 'Main Studio'),
+(14, 'Push Day Class', 18, 4, '2026-02-16 09:00:00', 60, 20, 'Main Studio'),
+(15, 'Swimming Class', 22, 5, '2026-02-16 10:00:00', 60, 20, 'Pool Area'),
+(16, 'Marathon Prep Class', 13, 1, '2026-02-16 11:00:00', 60, 20, 'Track'),
+(17, 'Calisthenics Class', 4, 2, '2026-02-16 12:00:00', 60, 20, 'Outdoor Area'),
+(18, 'Quick Burn Class', 19, 3, '2026-02-16 13:00:00', 60, 20, 'Main Studio'),
+(19, 'Rehab Class', 20, 4, '2026-02-16 14:00:00', 60, 20, 'Private Room'),
+(20, 'Zumba Class', 25, 5, '2026-02-16 15:00:00', 60, 20, 'Main Studio'),
+(21, 'Hypertrophy Class', 10, 1, '2026-02-17 06:00:00', 60, 20, 'Main Studio'),
+(22, 'Explosive Class', 7, 2, '2026-02-17 07:00:00', 60, 20, 'Main Studio'),
+(23, 'Kettlebell Class', 11, 3, '2026-02-17 08:00:00', 60, 20, 'Main Studio'),
+(24, 'Pilates Class', 15, 4, '2026-02-17 09:00:00', 60, 20, 'Main Studio'),
+(25, 'Arm Day Class', 2, 5, '2026-02-17 10:00:00', 60, 20, 'Main Studio');
 
 INSERT INTO membership (membership_id, member_id, membership_plan_id, start_date, end_date, status) VALUES
 (1,1,1,'2024-01-15','2025-01-15','active'),
@@ -146,7 +175,6 @@ INSERT INTO membership (membership_id, member_id, membership_plan_id, start_date
 (24,24,2,'2024-03-01','2024-09-01','expired'),
 (25,25,1,'2024-04-01','2025-04-01','active');
 
-
 INSERT INTO bookings (booking_id, member_id, class_id, booked_at, status, notes) VALUES
 (1,1,23,'2026-02-10 08:00:00','attended','Imported from attendance_logs (check-in)'),
 (2,2,14,'2026-02-10 08:15:00','attended','Imported from attendance_logs (check-in)'),
@@ -172,7 +200,6 @@ INSERT INTO bookings (booking_id, member_id, class_id, booked_at, status, notes)
 (22,22,7,'2026-02-11 18:00:00','attended','Imported from attendance_logs (check-in)'),
 (23,23,11,'2026-02-11 19:00:00','attended','Imported from attendance_logs (check-in)'),
 (24,24,15,'2026-02-12 08:00:00','attended','Imported from attendance_logs (check-in)');
-
 
 INSERT INTO payments (payment_id, member_id, membership_id, booking_id, session_id, amount, payment_date, method, reference_no) VALUES
 (1,1,1,NULL,NULL,2500.00,'2024-01-15','cash','INIT-001'),
