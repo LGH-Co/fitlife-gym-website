@@ -18,9 +18,10 @@ DROP TABLE IF EXISTS members;
 SET FOREIGN_KEY_CHECKS = 1;
 
 CREATE TABLE admin_account (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
+    role ENUM('super_admin', 'staff') DEFAULT 'staff',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
