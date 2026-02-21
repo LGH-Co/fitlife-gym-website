@@ -16,10 +16,10 @@ function handleRFIDScan() {
   if (!rfid) return;
 
   const member = members.find(m => m.rfid.toUpperCase() === rfid || m.id.toUpperCase() === rfid);
-  if (member) { toggleMemberStatus(member); renderMemberCard(member); input.value = ''; return; }
+  if (member) { toggleMemberStatus(member); renderMemberCard(member); input.value = ''; startSessionTimer(() => { document.getElementById('kiosk-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('kiosk-result').innerHTML = ''; }); return; }
 
   const trainer = trainers.find(t => t.rfid.toUpperCase() === rfid || t.id.toUpperCase() === rfid);
-  if (trainer) { toggleTrainerStatus(trainer); renderTrainerCard(trainer); input.value = ''; return; }
+  if (trainer) { toggleTrainerStatus(trainer); renderTrainerCard(trainer); input.value = ''; startSessionTimer(() => { document.getElementById('kiosk-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('kiosk-result').innerHTML = ''; }); return; }
 
   document.getElementById('kiosk-result').innerHTML = `
     <div class="error-card">

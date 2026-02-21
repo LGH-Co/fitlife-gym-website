@@ -146,12 +146,8 @@
       if (inp) inp.focus();
     }, 100);
 
-    // 60-second session timer — expires back to login
-    startSessionTimer(() => {
-      document.getElementById('kiosk-screen').classList.add('hidden');
-      document.getElementById('login-screen').classList.remove('hidden');
-      document.getElementById('kiosk-result').innerHTML = '';
-    });
+    // Clear any previous session timer
+    clearSessionTimer();
   }
 
   function showLogin() {
