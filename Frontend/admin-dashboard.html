@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitLife Gym - Admin Dashboard</title>
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+    <header class="admin-header">
+        <div>
+            [cite_start]<h1>FitLife Gym Admin [cite: 2]</h1>
+            [cite_start]<p>Welcome Administrator [cite: 2]</p>
+        </div>
+        [cite_start]<button id="logoutBtn" class="logout-btn">Logout [cite: 9]</button>
+    </header>
+
+    <nav class="admin-nav">
+        <button class="active" data-tab="dashboard">Dashboard</button>
+        <button data-tab="members">Members</button>
+        <button data-tab="trainers">Trainers</button>
+    </nav>
+
+    <main class="admin-main">
+        <section id="dashboardView" class="view-section active">
+            <div class="metrics-grid" id="metricsGrid"></div>
+        </section>
+
+        <section id="membersView" class="view-section">
+            <div class="section-header">
+                [cite_start]<h2>Member Database [cite: 4]</h2>
+                [cite_start]<button id="addMemberBtn" class="primary-btn">Register New Member [cite: 10]</button>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        [cite_start]<th>ID [cite: 8]</th>
+                        [cite_start]<th>Name [cite: 11]</th>
+                        [cite_start]<th>Plan [cite: 13]</th>
+                        [cite_start]<th>Status [cite: 14]</th>
+                        [cite_start]<th>Expiry [cite: 15]</th>
+                        [cite_start]<th>Health [cite: 16]</th>
+                        [cite_start]<th>Actions [cite: 17]</th>
+                    </tr>
+                </thead>
+                <tbody id="membersTableBody"></tbody>
+            </table>
+        </section>
+
+        <section id="trainersView" class="view-section">
+             <div class="section-header">
+                [cite_start]<h2>Trainer Database [cite: 69]</h2>
+                <div>
+                    <select id="earningsFilter">
+                        [cite_start]<option value="all">All Time [cite: 69]</option>
+                        <option value="jan">January</option>
+                        <option value="feb">February</option>
+                    </select>
+                    [cite_start]<button id="addTrainerBtn" class="primary-btn">Onboard New Trainer [cite: 69]</button>
+                </div>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        [cite_start]<th>Name [cite: 69]</th>
+                        [cite_start]<th>Specialization [cite: 69]</th>
+                        [cite_start]<th>Rate/Session [cite: 69]</th>
+                        [cite_start]<th>Total Sessions [cite: 69]</th>
+                        [cite_start]<th>Earnings [cite: 69]</th>
+                        [cite_start]<th>Actions [cite: 69]</th>
+                    </tr>
+                </thead>
+                <tbody id="trainersTableBody"></tbody>
+            </table>
+        </section>
+    </main>
+
+    <script type="module" src="js/admin.js"></script>
+</body>
+</html>

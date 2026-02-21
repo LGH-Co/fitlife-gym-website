@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitLife Gym - RFID Access Kiosk</title>
+    <link rel="stylesheet" href="css/global.css">
+    <link rel="stylesheet" href="css/kiosk.css">
+</head>
+<body>
+    <div class="timer-badge" id="timeoutBadge">60s Remaining</div>
+
+    <div class="kiosk-container">
+        <div class="search-box">
+            <h2>FitLife Gym <br><span style="font-size: 1rem; color: #64748b; font-weight: normal;">RFID Access Kiosk</span></h2>
+            <p>Tap your RFID card or enter your ID.<br>System will automatically log you in or out.</p>
+            <div class="input-group">
+                <input type="text" id="rfidInput" placeholder="Tap RFID card or enter ID/Name..." autofocus autocomplete="off">
+                <button id="scanBtn">Scan</button>
+            </div>
+        </div>
+
+        <div id="userProfileCard" class="card-container"></div>
+    </div>
+
+    <div class="admin-link">
+        <a href="admin-login.html">Admin Login</a>
+    </div>
+
+    <script type="module" src="js/kiosk.js"></script>
+</body>
+</html>
