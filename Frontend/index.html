@@ -9,24 +9,24 @@
 </head>
 <body>
     <div class="timer-badge" id="timeoutBadge">60s Remaining</div>
-
     <div class="kiosk-container">
         <div class="search-box">
-            <h2>FitLife Gym <br><span style="font-size: 1rem; color: #64748b; font-weight: normal;">RFID Access Kiosk</span></h2>
-            <p>Tap your RFID card or enter your ID.<br>System will automatically log you in or out.</p>
+            <h1>FitLife Gym</h1>
+            <p>RFID Access Kiosk</p>
+            <div class="kiosk-instruction">
+                Tap your RFID card or enter your ID. <br>
+                System will automatically log you in or out. [cite: 85, 106]
+            </div>
             <div class="input-group">
-                <input type="text" id="rfidInput" placeholder="Tap RFID card or enter ID/Name..." autofocus autocomplete="off">
+                <input type="text" id="rfidInput" placeholder="Tap RFID card or enter ID/Name..." autofocus>
                 <button id="scanBtn">Scan</button>
             </div>
         </div>
-
-        <div id="userProfileCard" class="card-container"></div>
+        <div id="userProfileCard"></div>
     </div>
-
-    <div class="admin-link">
+    <div class="admin-portal-link">
         <a href="admin-login.html">Admin Login</a>
     </div>
-
     <script type="module" src="js/kiosk.js"></script>
 </body>
 </html>

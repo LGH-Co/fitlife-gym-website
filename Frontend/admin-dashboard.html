@@ -2,81 +2,74 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FitLife Gym - Admin Dashboard</title>
+    <title>FitLife Gym Admin Dashboard</title>
     <link rel="stylesheet" href="css/global.css">
     <link rel="stylesheet" href="css/admin.css">
 </head>
 <body>
     <header class="admin-header">
-        <div>
-            [cite_start]<h1>FitLife Gym Admin [cite: 2]</h1>
-            [cite_start]<p>Welcome Administrator [cite: 2]</p>
+        <div class="brand">
+            <h1>FitLife Gym Admin</h1>
+            <p>Welcome, Administrator</p> [cite: 2, 50, 67]
         </div>
-        [cite_start]<button id="logoutBtn" class="logout-btn">Logout [cite: 9]</button>
+        <button onclick="location.href='index.html'">Logout</button> [cite: 9, 81]
     </header>
-
     <nav class="admin-nav">
-        <button class="active" data-tab="dashboard">Dashboard</button>
-        <button data-tab="members">Members</button>
-        <button data-tab="trainers">Trainers</button>
+        <button class="nav-btn active" data-tab="dashboard">Dashboard</button>
+        <button class="nav-btn" data-tab="members">Members</button>
+        <button class="nav-btn" data-tab="trainers">Trainers</button>
     </nav>
-
-    <main class="admin-main">
-        <section id="dashboardView" class="view-section active">
+    <main class="admin-content">
+        <section id="dashboardView" class="view active">
             <div class="metrics-grid" id="metricsGrid"></div>
+            <div class="charts-container">
+                <div class="chart-card">
+                    <h3>Peak Hours Analysis</h3>
+                    <p>Gym traffic throughout the day</p> [cite: 54, 55]
+                    <div id="peakHoursBarChart"></div>
+                </div>
+                <div class="chart-card">
+                    <h3>Member Retention Rate</h3>
+                    <p>Monthly retention percentage</p> [cite: 70, 71]
+                    <div id="retentionLineChart"></div>
+                </div>
+            </div>
         </section>
-
-        <section id="membersView" class="view-section">
-            <div class="section-header">
-                [cite_start]<h2>Member Database [cite: 4]</h2>
-                [cite_start]<button id="addMemberBtn" class="primary-btn">Register New Member [cite: 10]</button>
+        <section id="membersView" class="view">
+            <div class="view-header">
+                <h2>Member Database</h2> [cite: 4]
+                <button class="primary-btn">Register New Member</button> [cite: 10]
             </div>
             <table class="data-table">
                 <thead>
                     <tr>
-                        [cite_start]<th>ID [cite: 8]</th>
-                        [cite_start]<th>Name [cite: 11]</th>
-                        [cite_start]<th>Plan [cite: 13]</th>
-                        [cite_start]<th>Status [cite: 14]</th>
-                        [cite_start]<th>Expiry [cite: 15]</th>
-                        [cite_start]<th>Health [cite: 16]</th>
-                        [cite_start]<th>Actions [cite: 17]</th>
+                        <th>ID</th><th>Name</th><th>Plan</th><th>Status</th><th>Expiry</th><th>Health</th><th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="membersTableBody"></tbody>
             </table>
         </section>
-
-        <section id="trainersView" class="view-section">
-             <div class="section-header">
-                [cite_start]<h2>Trainer Database [cite: 69]</h2>
-                <div>
+        <section id="trainersView" class="view">
+            <div class="view-header">
+                <h2>Trainer Database</h2> [cite: 69]
+                <div class="trainer-controls">
                     <select id="earningsFilter">
-                        [cite_start]<option value="all">All Time [cite: 69]</option>
-                        <option value="jan">January</option>
+                        <option value="all">All Time</option>
                         <option value="feb">February</option>
                     </select>
-                    [cite_start]<button id="addTrainerBtn" class="primary-btn">Onboard New Trainer [cite: 69]</button>
+                    <button class="primary-btn">Onboard New Trainer</button>
                 </div>
             </div>
             <table class="data-table">
                 <thead>
                     <tr>
-                        <th>ID</th>
-                        [cite_start]<th>Name [cite: 69]</th>
-                        [cite_start]<th>Specialization [cite: 69]</th>
-                        [cite_start]<th>Rate/Session [cite: 69]</th>
-                        [cite_start]<th>Total Sessions [cite: 69]</th>
-                        [cite_start]<th>Earnings [cite: 69]</th>
-                        [cite_start]<th>Actions [cite: 69]</th>
+                        <th>Name</th><th>Specialization</th><th>Rate/Session</th><th>Total Sessions</th><th>Earnings</th><th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="trainersTableBody"></tbody>
             </table>
         </section>
     </main>
-
     <script type="module" src="js/admin.js"></script>
 </body>
 </html>

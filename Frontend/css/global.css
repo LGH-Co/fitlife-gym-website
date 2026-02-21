@@ -2,25 +2,13 @@
     --slate-50: #f8fafc;
     --slate-100: #f1f5f9;
     --slate-800: #1e293b;
-    --green-50: #f0fdf4;
-    --green-100: #dcfce7;
-    --green-600: #16a34a;
-    --blue-50: #eff6ff;
+    --green-500: #22c55e;
     --blue-600: #2563eb;
-    --purple-50: #faf5ff;
-    --purple-600: #9333ea;
-    --yellow-50: #fefce8;
-    --yellow-500: #eab308;
 }
-
-* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
-body { background-color: var(--slate-50); color: var(--slate-800); }
-
-.center-screen { display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-.login-card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); width: 100%; max-width: 400px; text-align: center; }
-.login-card input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid #cbd5e1; border-radius: 4px; }
-.login-card button { width: 100%; padding: 0.75rem; background: var(--slate-800); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-
-.timer-badge { position: fixed; top: 20px; right: 20px; background: #94a3b8; color: white; padding: 8px 16px; border-radius: 20px; font-weight: bold; display: none; z-index: 1000; transition: background 0.3s; }
-.timer-badge.danger { background: #ef4444; animation: pulse 1s infinite; }
-@keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+body { background: var(--slate-50); font-family: sans-serif; margin: 0; color: var(--slate-800); }
+.center-flex { display: flex; height: 100vh; justify-content: center; align-items: center; }
+.login-card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); width: 320px; text-align: center; }
+.login-card input { width: 100%; margin-bottom: 1rem; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; }
+.login-card button { width: 100%; background: black; color: white; border: none; padding: 0.6rem; border-radius: 4px; cursor: pointer; }
+.timer-badge { position: fixed; top: 1rem; right: 1rem; background: #94a3b8; color: white; padding: 0.5rem 1rem; border-radius: 20px; font-weight: bold; display: none; }
+.timer-badge.warning { background: #ef4444; }

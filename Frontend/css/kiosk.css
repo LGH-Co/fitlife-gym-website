@@ -1,43 +1,36 @@
 .kiosk-container { max-width: 800px; margin: 3rem auto; padding: 0 1rem; }
-.search-box { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05); text-align: center; margin-bottom: 2rem; }
+.search-box { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); text-align: center; margin-bottom: 2rem; }
 .input-group { display: flex; gap: 10px; margin-top: 1.5rem; }
-.input-group input { flex: 1; padding: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; }
+.input-group input { flex: 1; padding: 1rem; border: 1px solid #cbd5e1; border-radius: 8px; }
 .input-group button { padding: 1rem 2rem; background: black; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
-/* Dynamic Card System */
-.profile-card { background: white; border-radius: 12px; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); overflow: hidden; margin-top: 2rem; }
+/* Dynamic Card System [cite: 87, 107] */
+.profile-card { background: white; border-radius: 12px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); overflow: hidden; margin-top: 2rem; }
 .card-header { display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; }
 .card-header.trainer-bg { background-color: var(--green-100); }
 .card-header.member-bg { background-color: var(--green-50); }
-.header-info { display: flex; align-items: center; gap: 1rem; }
 .status-badge { background: var(--green-600); color: white; padding: 0.5rem 1rem; border-radius: 6px; font-weight: bold; font-size: 0.9rem; }
 
 .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; padding: 1.5rem; background: white; }
 .grid-col { display: flex; flex-direction: column; gap: 1rem; }
 
-/* Box Themes */
-.info-box { padding: 1.25rem; border-radius: 8px; border: 1px solid; }
-.label { font-size: 0.85rem; color: #64748b; margin-bottom: 0.5rem; display: block; }
-.value-lg { font-size: 1.5rem; font-weight: bold; }
-.sub-text { font-size: 0.85rem; color: #475569; margin-top: 0.25rem; }
-
-.theme-purple { border-color: var(--purple-600); background-color: white; }
-.theme-purple .value-lg { color: var(--purple-600); }
+/* Box Themes [cite: 88-99, 109-120] */
+.info-box { padding: 1.25rem; border-radius: 8px; border: 1px solid #e2e8f0; position: relative; }
+.theme-purple { border-color: var(--purple-600); }
 .theme-green { border-color: var(--green-600); background-color: var(--green-50); }
-.theme-green .value-lg { color: var(--green-600); }
 .theme-blue { border-color: var(--blue-600); background-color: var(--blue-50); }
-.theme-blue .value-lg { color: var(--blue-600); }
 .theme-yellow { border-color: var(--yellow-500); background-color: var(--yellow-50); }
 
-.nested-box { background: white; border: 1px solid; padding: 1rem; border-radius: 6px; margin-top: 0.5rem; text-align: center; }
-.nested-box.blue-border { border-color: var(--blue-600); text-align: left; }
+.value-lg { font-size: 1.5rem; font-weight: bold; margin: 5px 0; }
+.purple-txt { color: var(--purple-600); }
+.green-txt { color: var(--green-600); }
+.blue-txt { color: var(--blue-600); }
+
+/* Nested Boxes [cite: 93, 112] */
+.nested-box { background: white; border: 1px solid; padding: 1rem; border-radius: 6px; margin-top: 0.5rem; }
+.nested-box.blue-border { border-color: var(--blue-600); }
 .nested-box.yellow-border { border-color: var(--yellow-500); }
 
-.badge-sm { padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: bold; display: inline-block; }
-.badge-blue { background: var(--blue-600); color: white; }
-.badge-yellow { background: var(--yellow-500); color: white; }
-.badge-gray { background: #e2e8f0; color: #334155; }
-
-.footer-text { text-align: center; font-size: 0.8rem; color: #94a3b8; padding: 1rem; border-top: 1px solid #f1f5f9; background: white; }
-.admin-link { text-align: center; margin-top: 2rem; }
-.admin-link a { color: #94a3b8; text-decoration: none; font-size: 0.9rem; }
+.badge-premium { position: absolute; right: 10px; top: 40%; background: black; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; }
+.badge-sm { padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+.badge-green { background: var(--green-600); color: white; float: right; }
