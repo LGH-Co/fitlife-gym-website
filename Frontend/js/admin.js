@@ -17,7 +17,6 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
   renderAdminView(tab);
-  resetSessionTimer(adminLogout);
 }
 
 function renderAdminView(tab) {
