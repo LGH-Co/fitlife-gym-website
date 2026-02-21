@@ -25,15 +25,15 @@ VALUES
 (3, 2, 'Premium - 1 Month', 1, 1499.00, 1),
 (4, 2, 'Premium - 12 Months', 12, 15999.00, 1);
 
-INSERT INTO members (member_id, full_name, phone, email, join_date)
+INSERT INTO members (member_id, rfid, first_name, middle_name, last_name, phone, email, join_date)
 VALUES
-(1, 'Juan Dela Cruz', '09171234567', 'juan@example.com', '2026-01-10'),
-(2, 'Maria Santos', '09981234567', 'maria@example.com', '2026-02-01');
+(1, 1363725009, 'Juan', NULL, 'Dela Cruz', '09171234567', 'juan@example.com', '2026-01-10'),
+(2, 3329519694, 'Maria', NULL, 'Santos', '09981234567', 'maria@example.com', '2026-02-01');
 
-INSERT INTO trainers (trainer_id, full_name, phone, email, specialization, hire_date, is_active)
+INSERT INTO trainers (trainer_id, rfid, first_name, middle_name, last_name, phone, email, specialization, hire_date, is_active)
 VALUES
-(1, 'Coach Alex Reyes', '09170001111', 'alex@fitlife.com', 'Strength & Conditioning', '2025-10-15', 1),
-(2, 'Coach Bea Lim', '09170002222', 'bea@fitlife.com', 'Yoga & Mobility', '2025-11-01', 1);
+(1, 2000000001, 'Alex', NULL, 'Reyes', '09170001111', 'alex@fitlife.com', 'Strength & Conditioning', '2025-10-15', 1),
+(2, 2000000002, 'Bea', NULL, 'Lim', '09170002222', 'bea@fitlife.com', 'Yoga & Mobility', '2025-11-01', 1);
 
 INSERT INTO classes (class_id, class_name, service_type_id, trainer_id, starts_at, duration_minutes, capacity, location)
 VALUES
