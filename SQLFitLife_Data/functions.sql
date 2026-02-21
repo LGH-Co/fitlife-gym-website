@@ -10,7 +10,7 @@ BEFORE INSERT ON bookings
 FOR EACH ROW
 BEGIN
     DECLARE v_end_date DATE;
-    
+
     SELECT MAX(end_date) INTO v_end_date 
     FROM membership 
     WHERE member_id = NEW.member_id AND status = 'active';
@@ -23,33 +23,6 @@ END //
 
 DELIMITER ;
 
--- =========================
--- trainer payouts function
--- =========================
-
-DELIMITER //
-
-CREATE PROCEDURE Get_Trainer_Payroll_Report(
-    IN p_StartDate DATE,
-    IN p_EndDate DATE
-)
-BEGIN
-    SELECT 
-        t.full_name AS 'Trainer Name',
-        t.specialization AS 'Specialty',
-        COUNT(s.session_id) AS 'Total Sessions',
-        SUM(st.base_monthly_price * 0.4) AS 'Estimated Payout (40% Commission)' 
-    FROM trainers t
-    LEFT JOIN sessions s ON t.trainer_id = s.trainer_id
-    LEFT JOIN service_type st ON s.service_type_id = st.service_type_id
-    WHERE s.starts_at BETWEEN p_StartDate AND p_EndDate
-      AND s.status = 'completed'
-    GROUP BY t.trainer_id
-    ORDER BY 'Estimated Payout (40% Commission)' DESC;
-END //
-
-DELIMITER ;
-
 -- ==================
 --       CRUD
 -- ==================
@@ -58,7 +31,10 @@ DELIMITER ;
 DELIMITER //
 
 CREATE PROCEDURE Create_Member_Account(
-    IN p_full_name VARCHAR(100),
+    IN p_rfid BIGINT UNSIGNED,
+    IN p_first_name VARCHAR(50),
+    IN p_middle_name VARCHAR(50),
+    IN p_last_name VARCHAR(50),
     IN p_phone VARCHAR(20),
     IN p_email VARCHAR(120),
     IN p_plan_id INT,
@@ -67,8 +43,8 @@ CREATE PROCEDURE Create_Member_Account(
 BEGIN
     DECLARE v_member_id INT;
     
-    INSERT INTO members (full_name, phone, email, join_date)
-    VALUES (p_full_name, p_phone, p_email, CURDATE());
+    INSERT INTO members (rfid, first_name, middle_name, last_name, phone, email, join_date)
+    VALUES (p_rfid, p_first_name, p_middle_name, p_last_name, p_phone, p_email, CURDATE());
     
     SET v_member_id = LAST_INSERT_ID();
 
@@ -79,7 +55,6 @@ BEGIN
 END //
 
 DELIMITER ;
-
 -- =================
 --   soft delete
 -- ================
@@ -110,15 +85,15 @@ END //
 -- ==============
   
 -- this trigger block if a silver tries to book a session, it will block the logs 
-
 DELIMITER //
 
-CREATE TRIGGER tg_enforce_gold_tier
+CREATE TRIGGER gold_tier
 BEFORE INSERT ON sessions
 FOR EACH ROW
 BEGIN
     DECLARE v_tier_name VARCHAR(20);
 
+    -- Joins membership to membership_type to find the tier name
     SELECT mt.type_name INTO v_tier_name
     FROM membership m
     JOIN membership_plan mp ON m.membership_plan_id = mp.membership_plan_id
@@ -127,7 +102,6 @@ BEGIN
       AND m.status = 'active'
     LIMIT 1;
 
-    -- if the tier is 'Silver', they are forbidden from booking personal sessions
     IF v_tier_name = 'Silver' THEN
         SIGNAL SQLSTATE '45000'
         SET MESSAGE_TEXT = 'Access Denied: Silver members are not allowed to book personal trainers.';
@@ -141,7 +115,7 @@ DELIMITER ;
 -- =========================
 CREATE VIEW vw_trainer_payroll AS
 SELECT 
-    t.full_name,
+    CONCAT(t.first_name, ' ', IFNULL(t.middle_name, ''), ' ', t.last_name) AS trainer_full_name,
     COUNT(s.session_id) AS sessions_conducted,
     SUM(st.base_monthly_price * 0.5) AS total_commission
 FROM trainers t
@@ -176,9 +150,9 @@ DELIMITER ;
 -- Trainer Workload view
 -- =================================
 -- allows the admin to see which trainers are overbooked or underutilized.
-CREATE VIEW trainer_workload AS
+CREATE OR REPLACE VIEW trainer_workload AS
 SELECT 
-    t.full_name, 
+    CONCAT(t.first_name, ' ', IFNULL(t.middle_name, ''), ' ', t.last_name) AS trainer_full_name, 
     COUNT(s.session_id) AS active_sessions,
     COUNT(c.class_id) AS assigned_classes
 FROM trainers t
@@ -186,4 +160,38 @@ LEFT JOIN sessions s ON t.trainer_id = s.trainer_id AND s.status = 'scheduled'
 LEFT JOIN classes c ON t.trainer_id = c.trainer_id
 GROUP BY t.trainer_id;
 
+-- ===============================
+-- RFID-Based Attendance Logger
+-- ===============================
+-- allows the owner to log a scan simply by passing the rfid.
 
+DELIMITER //
+
+CREATE PROCEDURE Log_RFID(IN p_rfid BIGINT UNSIGNED)
+BEGIN
+    DECLARE v_member_id INT;
+    DECLARE v_trainer_id INT;
+    DECLARE v_role ENUM('Member','Trainer');
+
+  
+    SELECT member_id, 'Member' 
+        INTO v_member_id, v_role 
+        FROM members 
+        WHERE rfid = p_rfid;
+    
+    IF v_member_id IS NULL THEN
+        SELECT trainer_id, 'Trainer' 
+        INTO v_trainer_id, v_role 
+        FROM trainers
+        WHERE rfid = p_rfid;
+    END IF;
+
+    IF v_member_id IS NOT NULL OR v_trainer_id IS NOT NULL THEN
+        INSERT INTO attendance_logs (role, member_id, trainer_id, rfid, action, status, timestamp)
+        VALUES (v_role, v_member_id, v_trainer_id, p_rfid, 'Entry', 'Success', NOW());
+    ELSE
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Unregistered RFID Tag.';
+    END IF;
+END //
+
+DELIMITER ;
