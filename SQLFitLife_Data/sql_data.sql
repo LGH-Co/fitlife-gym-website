@@ -32,7 +32,7 @@ VALUES
 
 INSERT INTO trainers (trainer_id, rfid, first_name, middle_name, last_name, phone, email, specialization, hire_date, is_active)
 VALUES
-(1, 2000000001, 'Alex', NULL, 'Reyes', '09170001111', 'alex@fitlife.com', 'Strength & Conditioning', '2025-10-15', 1),
+(1, 1363680737, 'Alex', NULL, 'Reyes', '09170001111', 'alex@fitlife.com', 'Strength & Conditioning', '2025-10-15', 1),
 (2, 2000000002, 'Bea', NULL, 'Lim', '09170002222', 'bea@fitlife.com', 'Yoga & Mobility', '2025-11-01', 1);
 
 INSERT INTO classes (class_id, class_name, service_type_id, trainer_id, starts_at, duration_minutes, capacity, location)
