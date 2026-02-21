@@ -1,7 +1,3 @@
-Here is the final revised fitlife_schema.sql with RFID standardized as BIGINT UNSIGNED NOT NULL UNIQUE and properly aligned across all related tables.
-
-No comments included as requested.
-
 CREATE DATABASE IF NOT EXISTS fitlife_gym;
 USE fitlife_gym;
 
@@ -16,7 +12,9 @@ CREATE TABLE IF NOT EXISTS admin_account (
 CREATE TABLE IF NOT EXISTS members (
     member_id INT AUTO_INCREMENT PRIMARY KEY,
     rfid BIGINT UNSIGNED NOT NULL UNIQUE,
-    full_name VARCHAR(100) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    middle_name VARCHAR(50),
+    last_name VARCHAR(50) NOT NULL,
     phone VARCHAR(20),
     email VARCHAR(120),
     join_date DATE NOT NULL,
@@ -27,7 +25,9 @@ CREATE TABLE IF NOT EXISTS members (
 CREATE TABLE IF NOT EXISTS trainers (
     trainer_id INT AUTO_INCREMENT PRIMARY KEY,
     rfid BIGINT UNSIGNED NOT NULL UNIQUE,
-    full_name VARCHAR(100) NOT NULL,
+    first_name VARCHAR(50) NOT NULL,
+    middle_name VARCHAR(50),
+    last_name VARCHAR(50) NOT NULL,
     phone VARCHAR(20),
     email VARCHAR(120),
     specialization VARCHAR(80),
