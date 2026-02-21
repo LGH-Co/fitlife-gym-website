@@ -19,7 +19,7 @@ function bindLoginForm() {
         document.getElementById('login-screen').classList.add('hidden');
         document.getElementById('admin-portal').classList.remove('hidden');
         initAdmin();
-        startSessionTimer(adminLogout);
+        clearSessionTimer();
         showToast('Welcome, Administrator!');
       } else {
         showToast('Invalid credentials.', 'error');
