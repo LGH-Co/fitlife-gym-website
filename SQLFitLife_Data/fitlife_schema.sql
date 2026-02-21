@@ -1,3 +1,7 @@
+Here is the final revised fitlife_schema.sql with RFID standardized as BIGINT UNSIGNED NOT NULL UNIQUE and properly aligned across all related tables.
+
+No comments included as requested.
+
 CREATE DATABASE IF NOT EXISTS fitlife_gym;
 USE fitlife_gym;
 
@@ -11,22 +15,26 @@ CREATE TABLE IF NOT EXISTS admin_account (
 
 CREATE TABLE IF NOT EXISTS members (
     member_id INT AUTO_INCREMENT PRIMARY KEY,
+    rfid BIGINT UNSIGNED NOT NULL UNIQUE,
     full_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
     email VARCHAR(120),
     join_date DATE NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_members_email (email)
 );
 
 CREATE TABLE IF NOT EXISTS trainers (
     trainer_id INT AUTO_INCREMENT PRIMARY KEY,
+    rfid BIGINT UNSIGNED NOT NULL UNIQUE,
     full_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20),
     email VARCHAR(120),
     specialization VARCHAR(80),
     hire_date DATE NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_trainers_email (email)
 );
 
 CREATE TABLE IF NOT EXISTS service_type (
@@ -77,25 +85,6 @@ CREATE TABLE IF NOT EXISTS membership (
         ON DELETE RESTRICT
 );
 
-CREATE TABLE IF NOT EXISTS health_history (
-    health_history_id INT AUTO_INCREMENT PRIMARY KEY,
-    member_id INT NOT NULL,
-    height_cm DECIMAL(5,2),
-    weight_kg DECIMAL(5,2),
-    bmi DECIMAL(5,2),
-    blood_pressure VARCHAR(20),
-    medical_conditions TEXT,
-    allergies TEXT,
-    medications TEXT,
-    injuries TEXT,
-    notes VARCHAR(255),
-    recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_health_history_member
-        FOREIGN KEY (member_id) REFERENCES members(member_id)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE
-);
-
 CREATE TABLE IF NOT EXISTS classes (
     class_id INT AUTO_INCREMENT PRIMARY KEY,
     class_name VARCHAR(80) NOT NULL,
@@ -113,7 +102,8 @@ CREATE TABLE IF NOT EXISTS classes (
     CONSTRAINT fk_class_trainer
         FOREIGN KEY (trainer_id) REFERENCES trainers(trainer_id)
         ON UPDATE CASCADE
-        ON DELETE SET NULL
+        ON DELETE SET NULL,
+    INDEX idx_classes_start (starts_at)
 );
 
 CREATE TABLE IF NOT EXISTS bookings (
@@ -155,7 +145,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     CONSTRAINT fk_session_service
         FOREIGN KEY (service_type_id) REFERENCES service_type(service_type_id)
         ON UPDATE CASCADE
-        ON DELETE RESTRICT
+        ON DELETE RESTRICT,
+    INDEX idx_sessions_start (starts_at)
 );
 
 CREATE TABLE IF NOT EXISTS payments (
@@ -183,7 +174,8 @@ CREATE TABLE IF NOT EXISTS payments (
     CONSTRAINT fk_payment_session
         FOREIGN KEY (session_id) REFERENCES sessions(session_id)
         ON UPDATE CASCADE
-        ON DELETE SET NULL
+        ON DELETE SET NULL,
+    INDEX idx_payments_datetime (payment_datetime)
 );
 
 CREATE TABLE IF NOT EXISTS trainer_payouts (
@@ -208,10 +200,75 @@ CREATE TABLE IF NOT EXISTS trainer_payouts (
         ON DELETE SET NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_members_email ON members(email);
-CREATE INDEX IF NOT EXISTS idx_trainers_email ON trainers(email);
-CREATE INDEX IF NOT EXISTS idx_classes_start ON classes(starts_at);
-CREATE INDEX IF NOT EXISTS idx_sessions_start ON sessions(starts_at);
-CREATE INDEX IF NOT EXISTS idx_payments_datetime ON payments(payment_datetime);
-CREATE INDEX IF NOT EXISTS idx_health_history_member ON health_history(member_id);
-CREATE INDEX IF NOT EXISTS idx_health_history_recorded_at ON health_history(recorded_at);
+CREATE TABLE IF NOT EXISTS body_metrics (
+    body_metrics_id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT NOT NULL,
+    rfid BIGINT UNSIGNED NOT NULL,
+    weight DECIMAL(6,2),
+    height INT,
+    bmi DECIMAL(5,2),
+    target_weight DECIMAL(6,2),
+    recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_body_metrics_member
+        FOREIGN KEY (member_id) REFERENCES members(member_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_body_metrics_rfid
+        FOREIGN KEY (rfid) REFERENCES members(rfid)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    INDEX idx_body_metrics_member (member_id),
+    INDEX idx_body_metrics_rfid (rfid)
+);
+
+CREATE TABLE IF NOT EXISTS health_history (
+    health_history_id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT NOT NULL,
+    rfid BIGINT UNSIGNED NOT NULL,
+    log_date DATE NOT NULL,
+    type VARCHAR(30) NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_health_history_member
+        FOREIGN KEY (member_id) REFERENCES members(member_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    CONSTRAINT fk_health_history_rfid
+        FOREIGN KEY (rfid) REFERENCES members(rfid)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+    INDEX idx_health_history_member (member_id),
+    INDEX idx_health_history_rfid (rfid)
+);
+
+CREATE TABLE IF NOT EXISTS attendance_logs (
+    attendance_log_id INT AUTO_INCREMENT PRIMARY KEY,
+    role ENUM('Member','Trainer') NOT NULL,
+    member_id INT NULL,
+    trainer_id INT NULL,
+    rfid BIGINT UNSIGNED NOT NULL,
+    action VARCHAR(30) NOT NULL,
+    status VARCHAR(30),
+    timestamp DATETIME NOT NULL,
+    CONSTRAINT fk_attendance_member
+        FOREIGN KEY (member_id) REFERENCES members(member_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    CONSTRAINT fk_attendance_trainer
+        FOREIGN KEY (trainer_id) REFERENCES trainers(trainer_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
+    INDEX idx_attendance_rfid (rfid),
+    INDEX idx_attendance_timestamp (timestamp)
+);
+
+CREATE TABLE IF NOT EXISTS admin_audit_logs (
+    audit_id VARCHAR(40) PRIMARY KEY,
+    timestamp DATETIME NOT NULL,
+    actor_id VARCHAR(40) NOT NULL,
+    action VARCHAR(60) NOT NULL,
+    target_rfid BIGINT UNSIGNED NULL,
+    details JSON,
+    INDEX idx_audit_timestamp (timestamp),
+    INDEX idx_audit_target_rfid (target_rfid)
+);
