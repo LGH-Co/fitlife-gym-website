@@ -77,6 +77,25 @@ CREATE TABLE IF NOT EXISTS membership (
         ON DELETE RESTRICT
 );
 
+CREATE TABLE IF NOT EXISTS health_history (
+    health_history_id INT AUTO_INCREMENT PRIMARY KEY,
+    member_id INT NOT NULL,
+    height_cm DECIMAL(5,2),
+    weight_kg DECIMAL(5,2),
+    bmi DECIMAL(5,2),
+    blood_pressure VARCHAR(20),
+    medical_conditions TEXT,
+    allergies TEXT,
+    medications TEXT,
+    injuries TEXT,
+    notes VARCHAR(255),
+    recorded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_health_history_member
+        FOREIGN KEY (member_id) REFERENCES members(member_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS classes (
     class_id INT AUTO_INCREMENT PRIMARY KEY,
     class_name VARCHAR(80) NOT NULL,
@@ -194,3 +213,5 @@ CREATE INDEX IF NOT EXISTS idx_trainers_email ON trainers(email);
 CREATE INDEX IF NOT EXISTS idx_classes_start ON classes(starts_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_start ON sessions(starts_at);
 CREATE INDEX IF NOT EXISTS idx_payments_datetime ON payments(payment_datetime);
+CREATE INDEX IF NOT EXISTS idx_health_history_member ON health_history(member_id);
+CREATE INDEX IF NOT EXISTS idx_health_history_recorded_at ON health_history(recorded_at);
