@@ -28,7 +28,7 @@ try {
     }
 
     // Insert the new booking
-    $stmt = $pdo->prepare("INSERT INTO bookings (member_id, class_id, booking_date, status) VALUES (?, ?, NOW(), 'booked')");
+    $stmt = $pdo->prepare("INSERT INTO bookings (member_id, class_id, booked_at, status) VALUES (?, ?, NOW(), 'booked')");
     $stmt->execute([$raw_member_id, $class_id]);
 
     echo json_encode(["status" => "success", "message" => "Class successfully booked!"]);

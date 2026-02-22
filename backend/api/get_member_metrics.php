@@ -3,41 +3,43 @@
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 
-// Import your MongoDB connection (Make sure this path matches your setup!)
 require_once '../config/db_mongo.php';
 
-$member_id = isset($_GET['member_id']) ? $_GET['member_id'] : '';
+$raw_member_id = isset($_GET['member_id']) ? $_GET['member_id'] : '';
 
-if (empty($member_id)) {
+if (empty($raw_member_id)) {
     echo json_encode(["status" => "error", "message" => "Missing member ID."]);
     exit;
 }
 
 try {
-    // Access the body_metrics_logs collection from your MongoDB database instance
-    $collection = $mongoDb->body_metrics_logs;
+    // Strip the 'M' from 'M001' to get the raw integer for MongoDB
+    $member_id_int = (int) str_replace('M', '', $raw_member_id);
+
+    // Target your exact collection
+    $collection = $mongoDb->health_logs;
     
-    // Find logs for this specific member, sorting by date descending (newest first)
+    // Search using the integer and sort by your 'log_date' field
     $cursor = $collection->find(
-        ['member_id' => $member_id],
-        ['sort' => ['recorded_at' => -1]]
+        ['member_id' => $member_id_int],
+        ['sort' => ['log_date' => -1]]
     );
 
     $metrics = [];
     foreach ($cursor as $doc) {
-        // Handle MongoDB's tricky date objects safely
-        $date = isset($doc['recorded_at']) ? $doc['recorded_at'] : '--';
-        if (is_object($date) && method_exists($date, 'toDateTime')) {
-            $date = $date->toDateTime()->format('M d, Y');
-        } elseif (is_string($date)) {
+        // Format the log_date
+        $date = isset($doc['log_date']) ? $doc['log_date'] : '--';
+        if (is_string($date) && $date !== '--') {
             $date = date('M d, Y', strtotime($date));
         }
 
+        // Map your exact MongoDB fields
         $metrics[] = [
-            'weight' => isset($doc['weight']) ? $doc['weight'] : '--',
-            'bmi' => isset($doc['bmi']) ? $doc['bmi'] : '--',
-            'notes' => isset($doc['notes']) ? $doc['notes'] : '--',
-            'recorded_at' => $date
+            'date' => $date,
+            'type' => isset($doc['type']) ? $doc['type'] : '--',
+            'meal' => isset($doc['pre_workout_meal']) ? $doc['pre_workout_meal'] : '--',
+            'fatigue' => isset($doc['fatigue_level']) ? $doc['fatigue_level'] : '--',
+            'notes' => isset($doc['notes']) ? $doc['notes'] : '--'
         ];
     }
 

@@ -21,6 +21,7 @@ try {
     // FIX: Changed 'booking_date' to 'booked_at' to match your SQL schema
     $query = "
         SELECT 
+            b.booking_id,             -- NEW: We need this ID to delete them!
             CONCAT(m.first_name, ' ', m.last_name) AS member_name,
             m.email,
             m.phone,
@@ -28,7 +29,7 @@ try {
             b.status
         FROM bookings b
         JOIN members m ON b.member_id = m.member_id
-        WHERE b.class_id = ?
+        WHERE b.class_id = ? AND b.status != 'cancelled'  -- NEW: Hide cancelled members
         ORDER BY b.booked_at ASC
     ";
     

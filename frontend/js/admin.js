@@ -335,9 +335,15 @@ function saveNewMember() {
   showToast(`${fname} registered successfully!`);
 }
 
+// WITH GOLD PLAN LOCK
 function openEditMember(id) {
   const m = members.find(x => x.id === id);
   if (!m) return;
+
+  // Check if the user is Gold
+  const bookButtonHTML = m.plan.includes('Gold') 
+    ? `<button class="btn-primary" style="background-color: var(--p600);" onclick="openBookClassModal('${id}')">📅 Book Class</button>`
+    : `<button class="btn-primary" style="background-color: #94a3b8; cursor: not-allowed;" disabled title="Gold Plan Required">🔒 Upgrade to Gold</button>`;
   
   showModal(`
     <h3 class="modal-title">Edit Member: ${m.name}</h3>
@@ -395,9 +401,7 @@ function openEditMember(id) {
       </div>
     </div>
     <div class="modal-actions" style="justify-content: space-between;">
-      <button class="btn-primary" style="background-color: var(--p600);" onclick="openBookClassModal('${id}')">
-        📅 Book Class
-      </button>
+      ${bookButtonHTML}
       <div>
         <button class="btn-secondary" onclick="closeModal()">Cancel</button>
         <button class="btn-primary"   onclick="saveEditMember('${id}')">Save Changes</button>
@@ -458,23 +462,19 @@ async function deleteMember(id) {
 }
 
 // ── Member Booking Integration ──
-
 function openBookClassModal(memberId) {
   const m = members.find(x => x.id === memberId);
   if (!m) return;
 
-  // Check if we have classes loaded from the DB
   if (!classesData || classesData.length === 0) {
     showToast('No classes available in the schedule.', 'warning');
     return;
   }
 
-  // Generate the dynamic dropdown of live classes
   const classOpts = classesData.map(c => 
     `<option value="${c.id}">${c.name} (${c.startsAt} w/ ${c.trainer})</option>`
   ).join('');
 
-  // Overwrite the modal with the booking UI
   showModal(`
     <h3 class="modal-title">Book Class for ${m.name}</h3>
     <div class="form-group">
@@ -520,30 +520,31 @@ async function viewMetricsHistory(memberId) {
     const res = await fetch(`http://localhost/fitlife-gym/backend/api/get_member_metrics.php?member_id=${memberId}`);
     const result = await res.json();
     
-    let rows = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #999;">No historical logs found in MongoDB.</td></tr>';
+    let rows = '<tr><td colspan="5" style="text-align:center; padding: 20px; color: #999;">No historical logs found in MongoDB.</td></tr>';
     
     if (result.status === 'success' && result.data.length > 0) {
       rows = result.data.map(m => `
         <tr>
-          <td><strong style="color: var(--p600);">${m.recorded_at}</strong></td>
-          <td>${m.weight} kg</td>
-          <td>${m.bmi}</td>
+          <td><strong style="color: var(--p600);">${m.date}</strong></td>
+          <td><span style="font-weight: 600; color: #b45309;">${m.type}</span></td>
+          <td>${m.meal}</td>
+          <td><span class="status-pill-active">Level ${m.fatigue}</span></td>
           <td style="font-size: 12px; color: var(--s500); max-width: 200px;">${m.notes}</td>
         </tr>
       `).join('');
     }
 
-    // Overwrite the modal with the historical table
     showModal(`
-      <h3 class="modal-title">Health Timeline: ${memberId}</h3>
+      <h3 class="modal-title">Health & Workout Logs: ${memberId}</h3>
       <div class="table-wrap" style="max-height: 350px; overflow-y: auto;">
         <table class="data-table">
           <thead>
             <tr>
               <th>Date</th>
-              <th>Weight</th>
-              <th>BMI</th>
-              <th>Medical Notes / Clearance</th>
+              <th>Type</th>
+              <th>Pre-Workout Meal</th>
+              <th>Fatigue (1-10)</th>
+              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
@@ -875,9 +876,7 @@ function changeClassInstructorFilter(val) {
 // ── Class Management Modals ──
 
 function openScheduleClass() {
-  // Dynamically generate the dropdown options using your live trainers array!
   const trainerOpts = trainers.map(t => {
-      // Convert 'T001' back into the raw integer '1' for the MySQL database
       const dbId = parseInt(t.id.replace('T', ''));
       return `<option value="${dbId}">${t.name} (${t.specialization})</option>`;
   }).join('');
@@ -925,7 +924,7 @@ async function saveNewClass() {
   const name = document.getElementById('c-name').value.trim();
   const trainerId = parseInt(document.getElementById('c-trainer').value);
   const location = document.getElementById('c-location').value.trim();
-  const datetimeRaw = document.getElementById('c-datetime').value; // Format: YYYY-MM-DDTHH:MM
+  const datetimeRaw = document.getElementById('c-datetime').value; 
   const duration = parseInt(document.getElementById('c-duration').value);
   const capacity = parseInt(document.getElementById('c-capacity').value);
 
@@ -933,7 +932,6 @@ async function saveNewClass() {
     showToast('Please fill out all required fields.', 'error'); return;
   }
 
-  // Format the HTML datetime into MySQL's strict format (YYYY-MM-DD HH:MM:00)
   const mysqlDatetime = datetimeRaw.replace('T', ' ') + ':00';
 
   try {
@@ -955,8 +953,6 @@ async function saveNewClass() {
     if (result.status === 'success') {
       closeModal();
       showToast('Class scheduled successfully!');
-      
-      // Tell data.js to pull the fresh data from the DB, then re-draw the table!
       await loadClasses(); 
       renderAdminView('classes');
     } else {
@@ -968,17 +964,16 @@ async function saveNewClass() {
   }
 }
 
+// WITH UNENROLL TRASH CAN
 // ── View Class Bookings ──
 async function viewClassBookings(classId) {
   try {
-    // Find the class details
     const classInfo = classesData.find(c => (c.id) === classId);
     if (!classInfo) {
       showToast('Class not found.', 'error');
       return;
     }
 
-    // Fetch bookings from the backend
     const response = await fetch(`http://localhost/fitlife-gym/backend/api/get_class_bookings.php?class_id=${classId}`);
     const result = await response.json();
 
@@ -989,10 +984,9 @@ async function viewClassBookings(classId) {
 
     const bookings = result.data || [];
     
-    // Generate booking rows
     let bookingRows = '';
     if (bookings.length === 0) {
-      bookingRows = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">No bookings yet</td></tr>';
+      bookingRows = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No bookings yet</td></tr>';
     } else {
       bookingRows = bookings.map(b => {
         const statusColor = {
@@ -1009,42 +1003,56 @@ async function viewClassBookings(classId) {
         
         return `
           <tr>
-            <td>${b.member_name}</td>
+            <td style="white-space: nowrap;"><strong>${b.member_name}</strong></td>
             <td>${b.email || '--'}</td>
-            <td>${b.phone || '--'}</td>
-            <td>${bookedDate}</td>
-            <td><span style="color:${statusColor}; font-weight:600;">${b.status.toUpperCase()}</span></td>
+            <td style="white-space: nowrap;">${b.phone || '--'}</td>
+            <td style="white-space: nowrap;">${bookedDate}</td>
+            <td><span style="color:${statusColor}; font-weight:600;">${(b.status || 'booked').toUpperCase()}</span></td>
+            <td style="text-align: center;">
+              <button class="tbl-btn-del" onclick="cancelClassBooking(${b.booking_id}, ${classId})" title="Unenroll Member">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                  <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+                </svg>
+              </button>
+            </td>
           </tr>
         `;
       }).join('');
     }
 
-    // Show modal with bookings table
+    // 1. Added a <div style="min-width: 800px;"> wrapper to force the modal wide
+    // 2. Added overflow-x: auto to the table wrapper just in case they are on a small laptop screen
     showModal(`
-      <h3 class="modal-title">Class Bookings: ${classInfo.name}</h3>
-      <div style="margin-bottom:15px; color:#666;">
-        <strong>Instructor:</strong> ${classInfo.trainer} &nbsp;|&nbsp; 
-        <strong>Schedule:</strong> ${classInfo.startsAt} &nbsp;|&nbsp; 
-        <strong>Booked:</strong> ${bookings.length} / ${classInfo.capacity}
-      </div>
-      <div class="table-wrap" style="max-height:400px; overflow-y:auto;">
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Member Name</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Booked At</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${bookingRows}
-          </tbody>
-        </table>
-      </div>
-      <div class="modal-actions">
-        <button class="btn-secondary" onclick="closeModal()">Close</button>
+      <div style="min-width: 800px;"> 
+        <h3 class="modal-title">Class Bookings: ${classInfo.name}</h3>
+        <div style="margin-bottom:15px; color:#666;">
+          <strong>Instructor:</strong> ${classInfo.trainer} &nbsp;|&nbsp; 
+          <strong>Schedule:</strong> ${classInfo.startsAt} &nbsp;|&nbsp; 
+          <strong>Booked:</strong> ${bookings.length} / ${classInfo.capacity}
+        </div>
+        <div class="table-wrap" style="max-height:400px; overflow-y:auto; overflow-x:auto;">
+          <table class="data-table" style="width: 100%; min-width: 750px;">
+            <thead>
+              <tr>
+                <th>Member Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Booked At</th>
+                <th>Status</th>
+                <th style="text-align: center;">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${bookingRows}
+            </tbody>
+          </table>
+        </div>
+        <div class="modal-actions" style="margin-top: 20px;">
+          <button class="btn-secondary" onclick="closeModal()">Close</button>
+        </div>
       </div>
     `);
   } catch (error) {
@@ -1053,9 +1061,36 @@ async function viewClassBookings(classId) {
   }
 }
 
+// ── Cancel/Unenroll Class Booking ──
+async function cancelClassBooking(bookingId, classId) {
+  if (!confirm('Are you sure you want to unenroll this member? Their slot will be freed up.')) return;
+
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/cancel_booking.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ booking_id: bookingId })
+    });
+    const result = await res.json();
+
+    if (result.status === 'success') {
+      showToast(result.message, 'success');
+      // Reload classes to instantly update the capacity counter in the background
+      await loadClasses();
+      renderAdminView('classes');
+      // Re-trigger the modal so the deleted person instantly vanishes from the screen
+      viewClassBookings(classId);
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (error) {
+    console.error(error);
+    showToast('Server connection failed.', 'error');
+  }
+}
+
 // ── Financials & Billing Tab ──
 function renderBillingTab() {
-  // Generate rows for incoming payments
   const paymentRows = paymentsData.map(p => `
     <tr>
       <td>${p.id}</td>
@@ -1067,7 +1102,6 @@ function renderBillingTab() {
     </tr>
   `).join('');
 
-  // Generate rows for outgoing trainer payouts
   const payoutRows = payoutsData.map(p => {
     const statusClass = p.status === 'paid' ? 'status-pill-active' : 'status-pill-banned';
     return `
@@ -1099,7 +1133,6 @@ function renderBillingTab() {
   </div>
   
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
-      
       <div class="table-wrap">
         <div style="padding: 15px 20px; border-bottom: 1px solid var(--s200); background: #f8fafc; border-radius: 12px 12px 0 0;">
             <h3 style="margin: 0; font-size: 16px; color: var(--p600);">Incoming: Member Payments</h3>
@@ -1123,6 +1156,5 @@ function renderBillingTab() {
           <tbody>${payoutRows || '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payouts recorded</td></tr>'}</tbody>
         </table>
       </div>
-
   </div>`;
 }
