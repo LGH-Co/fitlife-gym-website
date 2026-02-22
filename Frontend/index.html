@@ -15,7 +15,6 @@
      LOGIN SCREEN
      ============================================================ -->
 <div id="login-screen">
-
   <div class="login-brand">
     <div class="login-brand-icon">🏋</div>
     <h1>FitLife Gym</h1>
@@ -24,7 +23,7 @@
 
   <div class="login-card">
     <h2>Admin Login</h2>
-    <p>Enter your credentials to access the admin dashboard</p>
+    <p>Sign in with your admin account credentials</p>
 
     <form id="admin-login-form">
       <div class="form-group">
@@ -41,17 +40,13 @@
       <button type="submit" class="btn-primary btn-full">Login as Admin</button>
     </form>
 
-    <div class="login-demo">
-      🔑 Demo credentials: <strong>admin</strong> / <strong>admin123</strong>
-    </div>
-
     <div class="login-divider">or</div>
 
     <button class="kiosk-link" onclick="showKiosk()">
       🖥 Go to RFID Kiosk
     </button>
 
-    <p style="text-align:center; font-size:12px; color:var(--s400); margin-top:10px;">
+    <p style="text-align:center;font-size:12px;color:var(--s400);margin-top:10px;">
       Trainers and Members: Use the RFID Kiosk to access your dashboard
     </p>
   </div>
@@ -63,7 +58,6 @@
      RFID KIOSK SCREEN
      ============================================================ -->
 <div id="kiosk-screen" class="hidden">
-
   <button class="kiosk-back" onclick="showLogin()">← Back to Admin</button>
 
   <div class="kiosk-header">
@@ -76,14 +70,13 @@
     <div class="kiosk-scan-sub">System will automatically log you in or out</div>
     <div class="rfid-input-row">
       <input id="rfid-input" type="text"
-             placeholder="Tap RFID card or enter ID/Name..."
+             placeholder="Tap RFID card or enter ID…"
              autocomplete="off"/>
       <button id="scan-btn" class="scan-btn">Scan</button>
     </div>
   </div>
 
   <div id="kiosk-result"></div>
-
 </div>
 
 <!-- ============================================================
@@ -91,25 +84,30 @@
      ============================================================ -->
 <div id="admin-portal" class="hidden">
 
+  <!-- Top bar -->
   <div class="admin-topbar">
     <div class="admin-brand">
       <h2>FitLife Gym Admin</h2>
-      <p>Welcome, Administrator</p>
+      <p>Welcome, <span id="admin-name-display">Administrator</span>
+         &nbsp;·&nbsp; <span id="admin-role-display" class="role-badge"></span>
+      </p>
     </div>
     <div class="admin-topbar-right">
       <button class="logout-btn" onclick="adminLogout()">Logout</button>
     </div>
   </div>
 
+  <!-- Tabs -->
   <div class="admin-tabs">
-    <button class="tab-btn active" data-tab="dashboard"
-            onclick="switchTab('dashboard')">Dashboard</button>
-    <button class="tab-btn" data-tab="members"
-            onclick="switchTab('members')">Members</button>
-    <button class="tab-btn" data-tab="trainers"
-            onclick="switchTab('trainers')">Trainers</button>
+    <button class="tab-btn active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="tab-btn" data-tab="members"          onclick="switchTab('members')">Members</button>
+    <button class="tab-btn" data-tab="trainers"         onclick="switchTab('trainers')">Trainers</button>
+    <button class="tab-btn" data-tab="classes"          onclick="switchTab('classes')">Classes &amp; Bookings</button>
+    <button class="tab-btn" data-tab="billing"          onclick="switchTab('billing')">Billing</button>
+    <button class="tab-btn" data-tab="logs"             onclick="switchTab('logs')">Logs</button>
   </div>
 
+  <!-- Tab content -->
   <div id="admin-content"></div>
 
 </div>
@@ -121,40 +119,12 @@
   <div id="modal-content"></div>
 </div>
 
-<!-- SCRIPTS -->
+<!-- SCRIPTS (order matters) -->
 <script src="js/data.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/kiosk.js"></script>
 <script src="js/admin.js"></script>
 <script src="js/app.js"></script>
-
-
-<script>
-  /* ── Screen navigation helpers ── */
-
-  function showKiosk() {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('admin-portal').classList.add('hidden');
-    document.getElementById('kiosk-screen').classList.remove('hidden');
-
-    // Auto-focus the RFID input
-    setTimeout(() => {
-      const inp = document.getElementById('rfid-input');
-      if (inp) inp.focus();
-    }, 100);
-
-    // Clear any previous session timer
-    clearSessionTimer();
-  }
-
-  function showLogin() {
-    clearSessionTimer();
-    document.getElementById('kiosk-screen').classList.add('hidden');
-    document.getElementById('admin-portal').classList.add('hidden');
-    document.getElementById('login-screen').classList.remove('hidden');
-    document.getElementById('kiosk-result').innerHTML = '';
-  }
-</script>
 
 </body>
 </html>
