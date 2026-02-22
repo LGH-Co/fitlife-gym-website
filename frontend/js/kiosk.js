@@ -6,14 +6,44 @@ function initKiosk() {
   input.addEventListener('keydown', e => { if (e.key === 'Enter') handleRFIDScan(); });
 }
 
+// frontend/js/kiosk.js 
 function handleRFIDScan() {
   const input = document.getElementById('rfid-input');
   const rfid  = input.value.trim().toUpperCase();
   if (!rfid) return;
 
+  const container = document.getElementById('kiosk-result');
+
+  // 1. Check if the RFID belongs to a Member
   const member = members.find(m =>
     m.rfid.toUpperCase() === rfid || m.id.toUpperCase() === rfid);
+    
   if (member) {
+    // SECURITY CHECK: Is the member banned?
+    if (member.status === 'banned') {
+      container.innerHTML = `
+        <div class="error-card" style="border-top: 4px solid #ef4444;">
+          <div class="error-icon" style="color: #ef4444;">🚫</div>
+          <h3 style="color: #ef4444;">Access Denied</h3>
+          <p style="font-size: 1.1rem; font-weight: 500;">You're banned from this gym</p>
+        </div>`;
+      input.value = '';
+      return; // Stop execution instantly
+    }
+
+    // SECURITY CHECK: Is the member expired? (Checks both the status text and the actual date)
+    if (member.status === 'expired' || isMembershipExpired(member.expiry)) {
+      container.innerHTML = `
+        <div class="error-card" style="border-top: 4px solid #f59e0b;">
+          <div class="error-icon" style="color: #f59e0b;">⏳</div>
+          <h3 style="color: #f59e0b;">Access Denied</h3>
+          <p style="font-size: 1.1rem; font-weight: 500;">Membership expired, contact your admin to renew membership</p>
+        </div>`;
+      input.value = '';
+      return; // Stop execution instantly
+    }
+
+    // If they pass the checks, log them in normally!
     toggleMemberStatus(member);
     renderMemberCard(member);
     startSessionTimer(handleKioskSessionExpiry);
@@ -21,8 +51,10 @@ function handleRFIDScan() {
     return;
   }
 
+  // 2. Check if the RFID belongs to a Trainer
   const trainer = trainers.find(t =>
     t.rfid.toUpperCase() === rfid || t.id.toUpperCase() === rfid);
+    
   if (trainer) {
     toggleTrainerStatus(trainer);
     renderTrainerCard(trainer);
@@ -31,7 +63,8 @@ function handleRFIDScan() {
     return;
   }
 
-  document.getElementById('kiosk-result').innerHTML = `
+  // 3. Fallback: RFID not found anywhere
+  container.innerHTML = `
     <div class="error-card">
       <div class="error-icon">⚠</div>
       <h3>RFID Not Recognized</h3>

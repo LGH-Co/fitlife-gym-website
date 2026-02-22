@@ -6,13 +6,13 @@ const WORKOUT_PROGRAMS = [
 ];
 
 // We will eventually replace these with your MongoDB Cloud data!
-const retentionData = [
+let retentionData = [
   { month: 'Jan', rate: 92 }, { month: 'Feb', rate: 88 },
   { month: 'Mar', rate: 91 }, { month: 'Apr', rate: 90 },
   { month: 'May', rate: 93 }, { month: 'Jun', rate: 94 }
 ];
 
-const peakHoursData = [
+let peakHoursData = [
   { hour: '6 AM',  count: 28 }, { hour: '8 AM',  count: 45 },
   { hour: '10 AM', count: 31 }, { hour: '12 PM', count: 33 },
   { hour: '2 PM',  count: 20 }, { hour: '4 PM',  count: 38 },
@@ -22,7 +22,9 @@ const peakHoursData = [
 // 1. Initialize empty arrays
 let members = [];
 let trainers = [];
-let classesData = []; // NEW: Array to hold your class schedule
+let classesData = []; // Array to hold class schedule
+let paymentsData = [];
+let payoutsData = [];
 
 // 2. Fetch and map Members from MySQL
 async function loadMembers() {
@@ -31,6 +33,7 @@ async function loadMembers() {
         const json = await res.json();
         if (json.status === 'success') {
             members = json.data.map(dbM => ({
+                memberId: dbM.member_id,
                 id: 'M' + dbM.member_id.toString().padStart(3, '0'),
                 rfid: dbM.rfid.toString(),
                 
@@ -44,10 +47,11 @@ async function loadMembers() {
                 name: `${dbM.first_name} ${dbM.last_name}`,
                 contact: `${dbM.email} | ${dbM.phone || 'No Phone'}`, 
                 
-                // Defaulting to the new DB plans
-                plan: 'Basic - 1 Month', 
-                status: 'active',
-                expiry: '12/31/2026',
+                                plan: dbM.plan_type || 'Silver - 1 month',
+                                status: dbM.membership_status || 'active',
+                                expiry: dbM.end_date
+                                    ? new Date(dbM.end_date).toLocaleDateString('en-US')
+                                    : 'N/A',
                 height: 170, weight: 70, bmi: 24.2, targetWeight: 65,
                 metricsUpdatedAt: dbM.join_date,
                 loggedIn: false, loginTime: null, sessions: []
@@ -64,9 +68,11 @@ async function loadTrainers() {
         const json = await res.json();
         if (json.status === 'success') {
             trainers = json.data.map(dbT => ({
+                trainerId: dbT.trainer_id,
                 id: 'T' + dbT.trainer_id.toString().padStart(3, '0'),
                 rfid: dbT.rfid.toString(),
                 name: `${dbT.first_name} ${dbT.last_name}`,
+                phone: dbT.phone || '',
                 specialization: dbT.specialization,
                 ratePerSession: 60,
                 loggedIn: false, clockInTime: null,
@@ -84,6 +90,7 @@ async function loadClasses() {
         const json = await res.json();
         if (json.status === 'success') {
             classesData = json.data.map(dbC => ({
+                classId: dbC.class_id,
                 id: dbC.class_id,
                 name: dbC.class_name,
                 trainer: `${dbC.trainer_first} ${dbC.trainer_last}`,
@@ -93,11 +100,98 @@ async function loadClasses() {
                 }),
                 duration: dbC.duration_minutes,
                 capacity: dbC.capacity,
+                bookedCount: dbC.booked_count,
                 location: dbC.location
             }));
             console.log("🟢 Classes Loaded:", classesData.length);
         }
     } catch (e) { console.error("🔴 Failed to load classes:", e); }
+}
+
+// 5. Fetch and Aggregate Attendance Logs from MongoDB Cloud
+async function loadAttendanceData() {
+    try {
+        const res = await fetch('http://localhost/fitlife-gym/backend/api/get_attendance.php');
+        const json = await res.json();
+        
+        if (json.status === 'success' && json.data) {
+            const logs = json.data;
+            
+            // Create empty bins for our dashboard chart
+            let hourCounts = { '6 AM': 0, '8 AM': 0, '10 AM': 0, '12 PM': 0, '2 PM': 0, '4 PM': 0, '6 PM': 0, '8 PM': 0 };
+
+            // Loop through every single MongoDB log
+            logs.forEach(log => {
+                // Safely extract the timestamp (handling different MongoDB date formats)
+                let logDateStr = log.timestamp || log.check_in_time || log.date || log.created_at;
+                
+                // If MongoDB returned an extended JSON $date object, extract the string
+                if (logDateStr && typeof logDateStr === 'object' && logDateStr.$date) {
+                    logDateStr = logDateStr.$date;
+                }
+                
+                if (!logDateStr) return; 
+
+                // Convert to a JS Date object and extract the hour (0-23)
+                const dateObj = new Date(logDateStr);
+                const hour = dateObj.getHours();
+
+                // Sort the check-in into the correct UI bucket
+                if      (hour >= 5  && hour < 7)  hourCounts['6 AM']++;
+                else if (hour >= 7  && hour < 9)  hourCounts['8 AM']++;
+                else if (hour >= 9  && hour < 11) hourCounts['10 AM']++;
+                else if (hour >= 11 && hour < 13) hourCounts['12 PM']++;
+                else if (hour >= 13 && hour < 15) hourCounts['2 PM']++;
+                else if (hour >= 15 && hour < 17) hourCounts['4 PM']++;
+                else if (hour >= 17 && hour < 19) hourCounts['6 PM']++;
+                else if (hour >= 19 || hour < 5)  hourCounts['8 PM']++;
+            });
+
+            // Overwrite the global peakHoursData array with our live MongoDB calculations!
+            peakHoursData = Object.keys(hourCounts).map(hourLabel => ({
+                hour: hourLabel,
+                count: hourCounts[hourLabel]
+            }));
+
+            console.log("🟢 MongoDB Attendance Analyzed! Total logs:", logs.length);
+        }
+    } catch (e) { 
+        console.error("🔴 Failed to load MongoDB attendance:", e); 
+    }
+}
+// 6. Fetch Member Payments
+async function loadPayments() {
+    try {
+        const res = await fetch('http://localhost/fitlife-gym/backend/api/get_payments.php');
+        const json = await res.json();
+        if (json.status === 'success') {
+            paymentsData = json.data.map(p => ({
+                id: p.payment_id,
+                memberName: p.member_name,
+                amount: p.amount,
+                date: new Date(p.payment_date).toLocaleDateString(),
+                method: p.payment_method,
+                reference: p.reference_number
+            }));
+        }
+    } catch (e) { console.error("🔴 Failed to load payments:", e); }
+}
+
+// 7. Fetch Trainer Payouts
+async function loadPayouts() {
+    try {
+        const res = await fetch('http://localhost/fitlife-gym/backend/api/get_payouts.php');
+        const json = await res.json();
+        if (json.status === 'success') {
+            payoutsData = json.data.map(p => ({
+                id: p.payout_id,
+                trainerName: p.trainer_name,
+                amount: p.amount,
+                date: p.payout_date ? new Date(p.payout_date).toLocaleDateString() : null,
+                status: p.status
+            }));
+        }
+    } catch (e) { console.error("🔴 Failed to load payouts:", e); }
 }
 
 // Utility functions for UI
@@ -112,7 +206,14 @@ function getFilteredSessions(trainer, filterMonth) {
   return trainer.sessions.filter(s => s.month === month && s.year === year).length;
 }
 
-// 5. UPDATED: Load everything as soon as the script runs
-Promise.all([loadMembers(), loadTrainers(), loadClasses()]).then(() => {
+// Load all data sources as soon as the script runs
+Promise.all([
+    loadMembers(), 
+    loadTrainers(), 
+    loadClasses(), 
+    loadAttendanceData(),
+    loadPayments(), 
+    loadPayouts()
+]).then(() => {
     console.log("✅ All Live Database Systems Connected!");
 });

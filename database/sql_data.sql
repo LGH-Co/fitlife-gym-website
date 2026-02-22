@@ -15,8 +15,8 @@ VALUES
 
 INSERT INTO membership_type (membership_type_id, type_name, monthly_fee, perks)
 VALUES
-(1, 'Basic', 999.00, 'Gym access during staffed hours'),
-(2, 'Premium', 1499.00, 'Gym access + free group classes');
+(1, 'Silver', 999.00, 'Gym access only'),
+(2, 'Gold', 1499.00, 'Gym access with trainer + free group classes');
 
 INSERT INTO membership_plan (membership_plan_id, membership_type_id, plan_name, duration_months, price, is_active)
 VALUES
@@ -28,7 +28,8 @@ VALUES
 INSERT INTO members (member_id, rfid, first_name, middle_name, last_name, phone, email, join_date)
 VALUES
 (1, 1363725009, 'Juan', NULL, 'Dela Cruz', '09171234567', 'juan@example.com', '2026-01-10'),
-(2, 3329519694, 'Maria', NULL, 'Santos', '09981234567', 'maria@example.com', '2026-02-01');
+(2, 3329519694, 'Maria', NULL, 'Santos', '09981234567', 'maria@example.com', '2026-02-01'),
+(3, 1234567890, 'Carlos', NULL, 'Garcia', '09179876543', 'carlos@example.com', '2026-02-15');
 
 INSERT INTO trainers (trainer_id, rfid, first_name, middle_name, last_name, phone, email, specialization, hire_date, is_active)
 VALUES

@@ -6,11 +6,12 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once '../config/db_mysql.php';
 
 try {
-    // We use a JOIN to combine the classes table with the trainers table
+    // We added a subquery to count active bookings (ignoring cancelled ones)
     $query = "
         SELECT 
             c.class_id, c.class_name, c.starts_at, c.duration_minutes, c.capacity, c.location,
-            t.first_name AS trainer_first, t.last_name AS trainer_last
+            t.first_name AS trainer_first, t.last_name AS trainer_last,
+            (SELECT COUNT(*) FROM bookings b WHERE b.class_id = c.class_id AND b.status != 'cancelled') AS booked_count
         FROM classes c
         LEFT JOIN trainers t ON c.trainer_id = t.trainer_id
         ORDER BY c.starts_at ASC

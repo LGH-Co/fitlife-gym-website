@@ -1,8 +1,27 @@
+const ADMIN_SESSION_KEY = 'fitlifeAdminSession';
+
 document.addEventListener('DOMContentLoaded', () => {
   initKiosk();
   bindLoginForm();
   bindModalClose();
+  restoreAdminSession();
 });
+
+function restoreAdminSession() {
+  const sessionRaw = localStorage.getItem(ADMIN_SESSION_KEY);
+  if (!sessionRaw) return;
+
+  try {
+    const session = JSON.parse(sessionRaw);
+    if (session?.isAdminLoggedIn) {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('admin-portal').classList.remove('hidden');
+      initAdmin();
+    }
+  } catch (error) {
+    localStorage.removeItem(ADMIN_SESSION_KEY);
+  }
+}
 
 // frontend/js/app.js (Replace the existing bindLoginForm function)
 
@@ -35,6 +54,12 @@ function bindLoginForm() {
             errEl.style.display = 'none';
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('admin-portal').classList.remove('hidden');
+
+            localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
+              isAdminLoggedIn: true,
+              username: result.data.username,
+              role: result.data.role
+            }));
             
             // Dynamically show their role from the database!
             showToast(`Welcome, ${result.data.username} (${result.data.role})!`);

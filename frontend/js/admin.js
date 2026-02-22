@@ -4,6 +4,7 @@ function initAdmin() { renderAdminView('dashboard'); }
 
 function adminLogout() {
   clearSessionTimer();
+  localStorage.removeItem('fitlifeAdminSession');
   document.getElementById('admin-portal').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
   showToast('Logged out successfully.', 'info');
@@ -20,7 +21,8 @@ function renderAdminView(tab) {
   if      (tab === 'dashboard') content.innerHTML = renderDashboard();
   else if (tab === 'members')   content.innerHTML = renderMembersTab();
   else if (tab === 'trainers')  content.innerHTML = renderTrainersTab();
-  else if (tab === 'classes')   content.innerHTML = renderClassesTab(); 
+  else if (tab === 'classes')   content.innerHTML = renderClassesTab();
+  else if (tab === 'billing')   content.innerHTML = renderBillingTab();
 }
 
 // ── Dashboard ──
@@ -28,8 +30,8 @@ function renderDashboard() {
   const now          = new Date();
   const activeCount  = members.filter(m => m.loggedIn).length;
   const totalMembers = members.length;
-  const goldMembers = members.filter(m => m.plan === 'Gold' && m.status === 'active').length;
-  const monthlyRev   = goldMembers * 1499;
+  const goldMembers = members.filter(m => m.plan.includes('Gold') && m.status === 'active').length;
+  const monthlyRev  = goldMembers * 1499;
   const activeTrains = trainers.filter(t => t.loggedIn).length;
   const asOf         = formatDateTime(now);
 
@@ -102,6 +104,7 @@ function renderDashboard() {
       <div class="chart-title">Peak Hours Analysis</div>
       <div class="chart-sub">Gym traffic throughout the day</div>
       <div class="bar-chart">${peakBars}</div>
+      <div class="stat-datetime">as of ${asOf}</div>
     </div>
     <div class="chart-card">
       <div class="chart-title">Member Retention Rate</div>
@@ -116,20 +119,42 @@ function renderDashboard() {
         </svg>
         <div class="chart-legend">→ retention</div>
       </div>
+      <div class="stat-datetime">as of ${asOf}</div>
     </div>
   </div>`;
 }
 
 // ── Members Tab ──
+let memberPlanFilter = 'all';
+let memberStatusFilter = 'all';
+
 function renderMembersTab() {
-  const rows = members.map(m => {
-    const planCell   = m.plan === 'Gold'
-      ? `<span class="plan-badge-gold">${m.plan}</span>`
-      : `<span class="plan-text-silver">${m.plan}</span>`;
+  const planOptions = ['all', ...new Set(members.map(m => m.plan))];
+  const statusOptions = ['all', ...new Set(members.map(m => m.status))];
+  
+  const planOpts = planOptions.map(p =>
+    `<option value="${p}" ${memberPlanFilter === p ? 'selected' : ''}>${p === 'all' ? 'All Plans' : p}</option>`
+  ).join('');
+  
+  const statusOpts = statusOptions.map(s =>
+    `<option value="${s}" ${memberStatusFilter === s ? 'selected' : ''}>${s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}</option>`
+  ).join('');
+
+  const filteredMembers = members.filter(m => {
+    const planMatch = memberPlanFilter === 'all' || m.plan === memberPlanFilter;
+    const statusMatch = memberStatusFilter === 'all' || m.status === memberStatusFilter;
+    return planMatch && statusMatch;
+  });
+
+  const rows = filteredMembers.map(m => {
+    const planCell = m.plan.includes('Gold')
+        ? `<span class="plan-badge-gold">${m.plan}</span>`
+        : `<span class="plan-text-silver">${m.plan}</span>`;
     const statusCell = `<span class="status-pill-${m.status}">${m.status}</span>`;
     
     return `
     <tr>
+      <td>${m.memberId ?? m.id ?? '--'}</td>
       <td><strong>${m.name}</strong></td>
       <td>${m.contact}</td>
       <td>${planCell}</td>
@@ -166,23 +191,41 @@ function renderMembersTab() {
   return `
   <div class="tab-header">
     <h2 class="tab-title">Member Database</h2>
-    <button class="btn-primary" onclick="openRegisterMember()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5"  y1="12" x2="19" y2="12"/>
-      </svg>
-      Register New Member
-    </button>
+    <div class="tab-header-right">
+      <select class="form-input form-select" onchange="changeMemberPlanFilter(this.value)">
+        ${planOpts}
+      </select>
+      <select class="form-input form-select" onchange="changeMemberStatusFilter(this.value)">
+        ${statusOpts}
+      </select>
+      <button class="btn-primary" onclick="openRegisterMember()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5"  y1="12" x2="19" y2="12"/>
+        </svg>
+        Register New Member
+      </button>
+    </div>
   </div>
   <div class="table-wrap">
     <table class="data-table">
       <thead><tr>
-        <th>Name</th><th>Contact</th><th>Plan</th><th>Status</th>
+        <th>ID</th><th>Name</th><th>Contact</th><th>Plan</th><th>Status</th>
         <th>Expiry</th><th>Body Metrics</th><th>Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
+}
+
+function changeMemberPlanFilter(val) {
+  memberPlanFilter = val;
+  renderAdminView('members');
+}
+
+function changeMemberStatusFilter(val) {
+  memberStatusFilter = val;
+  renderAdminView('members');
 }
 
 // ── Modals (Updated for DB Schema) ──
@@ -202,7 +245,7 @@ function openRegisterMember() {
     <div class="form-row-2">
       <div class="form-group">
         <label>Phone Number</label>
-        <input id="m-phone" class="form-input" placeholder="e.g. 09171234567"/>
+        <input id="m-phone" class="form-input" placeholder="e.g. 09171234567" inputmode="numeric" pattern="\\d{11}" maxlength="11"/>
       </div>
       <div class="form-group">
         <label>Email Address</label>
@@ -260,6 +303,9 @@ function saveNewMember() {
   if (!fname || !lname || !rfid) {
     showToast('First Name, Last Name, and RFID are required.', 'error'); return;
   }
+  if (!/^\d{11}$/.test(phone)) {
+    showToast('Phone Number must be exactly 11 digits.', 'error'); return;
+  }
   if (members.find(m => m.rfid.toUpperCase() === rfid.toUpperCase())) {
     showToast('RFID already exists in the system.', 'error'); return;
   }
@@ -308,7 +354,7 @@ function openEditMember(id) {
     <div class="form-row-2">
       <div class="form-group">
         <label>Phone Number</label>
-        <input id="em-phone" class="form-input" value="${m.phone || ''}"/>
+        <input id="em-phone" class="form-input" value="${m.phone || ''}" inputmode="numeric" pattern="\\d{11}" maxlength="11"/>
       </div>
       <div class="form-group">
         <label>Email Address</label>
@@ -332,7 +378,12 @@ function openEditMember(id) {
         </select>
       </div>
     </div>
-    <div class="modal-section-label">Body Metrics</div>
+    <div class="modal-section-label" style="display: flex; justify-content: space-between; align-items: center;">
+      <span>Body Metrics</span>
+      <button class="btn-secondary" style="font-size: 12px; padding: 4px 8px; border-color: #cbd5e1;" onclick="viewMetricsHistory('${id}')">
+        📊 View History
+      </button>
+    </div>
     <div class="form-row-2">
       <div class="form-group">
         <label>Height (cm)</label>
@@ -343,20 +394,30 @@ function openEditMember(id) {
         <input id="em-weight" class="form-input" type="number" value="${m.weight}"/>
       </div>
     </div>
-    <div class="modal-actions">
-      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
-      <button class="btn-primary"   onclick="saveEditMember('${id}')">Save Changes</button>
+    <div class="modal-actions" style="justify-content: space-between;">
+      <button class="btn-primary" style="background-color: var(--p600);" onclick="openBookClassModal('${id}')">
+        📅 Book Class
+      </button>
+      <div>
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary"   onclick="saveEditMember('${id}')">Save Changes</button>
+      </div>
     </div>`);
 }
 
 function saveEditMember(id) {
   const m = members.find(x => x.id === id);
   if (!m) return;
+
+  const updatedPhone = document.getElementById('em-phone').value.trim();
+  if (!/^\d{11}$/.test(updatedPhone)) {
+    showToast('Phone Number must be exactly 11 digits.', 'error'); return;
+  }
   
   m.firstName = document.getElementById('em-fname').value.trim();
   m.lastName  = document.getElementById('em-lname').value.trim();
   m.name      = `${m.firstName} ${m.lastName}`;
-  m.phone     = document.getElementById('em-phone').value.trim();
+  m.phone     = updatedPhone;
   m.email     = document.getElementById('em-email').value.trim();
   m.contact   = `${m.email} | ${m.phone}`;
   m.plan      = document.getElementById('em-plan').value;
@@ -370,14 +431,133 @@ function saveEditMember(id) {
   showToast('Member updated successfully!');
 }
 
-function deleteMember(id) {
-  if (!confirm('Delete this member? This cannot be undone.')) return;
-  const idx = members.findIndex(x => x.id === id);
-  if (idx !== -1) {
-    const name = members[idx].name;
-    members.splice(idx, 1);
-    renderAdminView('members');
-    showToast(`${name} removed.`, 'info');
+// SECURE SOFT DELETE FOR MEMBERS
+async function deleteMember(id) {
+  if (!confirm('Securely archive this member? Their financial and attendance records will remain intact.')) return;
+  
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/delete_member.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: id })
+    });
+    const result = await res.json();
+    
+    if (result.status === 'success') {
+      showToast(result.message, 'info');
+      // Reload the live data from MySQL and instantly redraw the table
+      await loadMembers();
+      renderAdminView('members');
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (e) { 
+    console.error(e); 
+    showToast('Server connection failed.', 'error'); 
+  }
+}
+
+// ── Member Booking Integration ──
+
+function openBookClassModal(memberId) {
+  const m = members.find(x => x.id === memberId);
+  if (!m) return;
+
+  // Check if we have classes loaded from the DB
+  if (!classesData || classesData.length === 0) {
+    showToast('No classes available in the schedule.', 'warning');
+    return;
+  }
+
+  // Generate the dynamic dropdown of live classes
+  const classOpts = classesData.map(c => 
+    `<option value="${c.id}">${c.name} (${c.startsAt} w/ ${c.trainer})</option>`
+  ).join('');
+
+  // Overwrite the modal with the booking UI
+  showModal(`
+    <h3 class="modal-title">Book Class for ${m.name}</h3>
+    <div class="form-group">
+      <label>Select a Scheduled Class</label>
+      <select id="book-class-select" class="form-input">
+        ${classOpts}
+      </select>
+    </div>
+    <div class="modal-actions" style="margin-top: 30px;">
+      <button class="btn-secondary" onclick="openEditMember('${memberId}')">← Back to Profile</button>
+      <button class="btn-primary" onclick="submitClassBooking('${memberId}')">Confirm Booking</button>
+    </div>
+  `);
+}
+
+async function submitClassBooking(memberId) {
+  const classId = document.getElementById('book-class-select').value;
+  if (!classId) return;
+
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/add_booking.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: memberId, class_id: classId })
+    });
+    const result = await res.json();
+
+    if (result.status === 'success') {
+      showToast(result.message, 'success');
+      closeModal();
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Server connection failed.', 'error');
+  }
+}
+
+// ── View Historical Health Metrics (MongoDB) ──
+async function viewMetricsHistory(memberId) {
+  try {
+    const res = await fetch(`http://localhost/fitlife-gym/backend/api/get_member_metrics.php?member_id=${memberId}`);
+    const result = await res.json();
+    
+    let rows = '<tr><td colspan="4" style="text-align:center; padding: 20px; color: #999;">No historical logs found in MongoDB.</td></tr>';
+    
+    if (result.status === 'success' && result.data.length > 0) {
+      rows = result.data.map(m => `
+        <tr>
+          <td><strong style="color: var(--p600);">${m.recorded_at}</strong></td>
+          <td>${m.weight} kg</td>
+          <td>${m.bmi}</td>
+          <td style="font-size: 12px; color: var(--s500); max-width: 200px;">${m.notes}</td>
+        </tr>
+      `).join('');
+    }
+
+    // Overwrite the modal with the historical table
+    showModal(`
+      <h3 class="modal-title">Health Timeline: ${memberId}</h3>
+      <div class="table-wrap" style="max-height: 350px; overflow-y: auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Weight</th>
+              <th>BMI</th>
+              <th>Medical Notes / Clearance</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions" style="margin-top: 20px;">
+        <button class="btn-primary" onclick="openEditMember('${memberId}')">← Back to Profile</button>
+      </div>
+    `);
+  } catch (error) {
+    console.error(error);
+    showToast('Failed to connect to MongoDB Cloud.', 'error');
   }
 }
 
@@ -411,6 +591,7 @@ function renderTrainersTab() {
     const label    = monthLabels[trainerEarningsFilter];
     return `
     <tr>
+      <td>${t.trainerId ?? t.id ?? '--'}</td>
       <td><strong>${t.name}</strong></td>
       <td>${t.specialization}</td>
       <td>${formatPhpCurrency(t.ratePerSession)}</td>
@@ -456,7 +637,7 @@ function renderTrainersTab() {
   <div class="table-wrap">
     <table class="data-table">
       <thead><tr>
-        <th>Name</th><th>Specialization</th><th>Rate/Session</th>
+        <th>ID</th><th>Name</th><th>Specialization</th><th>Rate/Session</th>
         <th>Total Sessions</th><th>Earnings</th><th>Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
@@ -483,6 +664,10 @@ function openOnboardTrainer() {
       <input id="t-rfid" class="form-input" placeholder="e.g. T004"/>
     </div>
     <div class="form-group">
+      <label>Phone Number</label>
+      <input id="t-phone" class="form-input" placeholder="e.g. 09171234567" inputmode="numeric" pattern="\\d{11}" maxlength="11"/>
+    </div>
+    <div class="form-group">
       <label>Specialization</label>
       <select id="t-spec" class="form-input">${specOpts}</select>
     </div>
@@ -499,17 +684,21 @@ function openOnboardTrainer() {
 function saveNewTrainer() {
   const name = document.getElementById('t-name').value.trim();
   const rfid = document.getElementById('t-rfid').value.trim();
+  const phone = document.getElementById('t-phone').value.trim();
   const spec = document.getElementById('t-spec').value;
   const rate = parseFloat(document.getElementById('t-rate').value);
   if (!name || !rfid || !rate) {
     showToast('Please fill all fields.', 'error'); return;
+  }
+  if (!/^\d{11}$/.test(phone)) {
+    showToast('Phone Number must be exactly 11 digits.', 'error'); return;
   }
   if (trainers.find(t => t.rfid.toUpperCase() === rfid.toUpperCase())) {
     showToast('Trainer ID already exists.', 'error'); return;
   }
   trainers.push({
     id: rfid.toUpperCase(), rfid: rfid.toUpperCase(),
-    name, specialization: spec, ratePerSession: rate,
+    name, phone, specialization: spec, ratePerSession: rate,
     loggedIn: false, clockInTime: null,
     sessions: [], totalSessions: 0, earningsByMonth: {}
   });
@@ -531,6 +720,10 @@ function openEditTrainer(id) {
       <input id="et-name" class="form-input" value="${t.name}"/>
     </div>
     <div class="form-group">
+      <label>Phone Number</label>
+      <input id="et-phone" class="form-input" value="${t.phone || ''}" inputmode="numeric" pattern="\\d{11}" maxlength="11"/>
+    </div>
+    <div class="form-group">
       <label>Specialization</label>
       <select id="et-spec" class="form-input">${specOpts}</select>
     </div>
@@ -547,7 +740,12 @@ function openEditTrainer(id) {
 function saveEditTrainer(id) {
   const t = trainers.find(x => x.id === id);
   if (!t) return;
+  const updatedPhone = document.getElementById('et-phone').value.trim();
+  if (!/^\d{11}$/.test(updatedPhone)) {
+    showToast('Phone Number must be exactly 11 digits.', 'error'); return;
+  }
   t.name           = document.getElementById('et-name').value.trim();
+  t.phone          = updatedPhone;
   t.specialization = document.getElementById('et-spec').value;
   t.ratePerSession = parseFloat(document.getElementById('et-rate').value) || t.ratePerSession;
   closeModal();
@@ -555,20 +753,56 @@ function saveEditTrainer(id) {
   showToast('Trainer updated!');
 }
 
-function deleteTrainer(id) {
-  if (!confirm('Remove this trainer?')) return;
-  const idx = trainers.findIndex(x => x.id === id);
-  if (idx !== -1) {
-    const name = trainers[idx].name;
-    trainers.splice(idx, 1);
-    renderAdminView('trainers');
-    showToast(`${name} removed.`, 'info');
+// SECURE SOFT DELETE FOR TRAINERS
+async function deleteTrainer(id) {
+  if (!confirm('Securely archive this trainer? Their session and payout records will remain intact.')) return;
+  
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/delete_trainer.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trainer_id: id })
+    });
+    const result = await res.json();
+    
+    if (result.status === 'success') {
+      showToast(result.message, 'info');
+      // Reload the live data from MySQL and instantly redraw the table
+      await loadTrainers();
+      renderAdminView('trainers');
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (e) { 
+    console.error(e); 
+    showToast('Server connection failed.', 'error'); 
   }
 }
+
 // ── Classes Tab ──
+let classNameFilter = 'all';
+let classInstructorFilter = 'all';
+
 function renderClassesTab() {
-  const rows = classesData.map(c => `
+  const classNameOptions = ['all', ...new Set(classesData.map(c => c.name))];
+  const instructorOptions = ['all', ...new Set(classesData.map(c => c.trainer))];
+
+  const classNameOpts = classNameOptions.map(name => `
+    <option value="${name}" ${classNameFilter === name ? 'selected' : ''}>${name === 'all' ? 'All Class Names' : name}</option>
+  `).join('');
+
+  const instructorOpts = instructorOptions.map(instructor => `
+    <option value="${instructor}" ${classInstructorFilter === instructor ? 'selected' : ''}>${instructor === 'all' ? 'All Instructors' : instructor}</option>
+  `).join('');
+
+  const filteredClasses = classesData.filter(c =>
+    (classNameFilter === 'all' || c.name === classNameFilter) &&
+    (classInstructorFilter === 'all' || c.trainer === classInstructorFilter)
+  );
+
+  const rows = filteredClasses.map(c => `
     <tr>
+      <td>${c.id ?? '--'}</td>
       <td><strong>${c.name}</strong></td>
       <td>${c.trainer}</td>
       <td>
@@ -578,8 +812,16 @@ function renderClassesTab() {
       </td>
       <td>${c.duration} mins</td>
       <td>${c.location}</td>
-      <td><span class="status-pill-active">0 / ${c.capacity}</span></td>
+      <td><span class="status-pill-active">${c.bookedCount} / ${c.capacity}</span></td>
       <td class="action-cell">
+        <button class="tbl-btn-edit" onclick="viewClassBookings(${c.id})" title="View Bookings">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </button>
         <button class="tbl-btn-del" onclick="alert('Delete feature coming soon!')" title="Delete">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/>
@@ -594,23 +836,41 @@ function renderClassesTab() {
   return `
   <div class="tab-header">
     <h2 class="tab-title">Class Schedule</h2>
-    <button class="btn-primary" onclick="openScheduleClass()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5"  y1="12" x2="19" y2="12"/>
-      </svg>
-      Schedule New Class
-    </button>
+    <div class="tab-header-right">
+      <select class="form-input form-select" onchange="changeClassNameFilter(this.value)">
+        ${classNameOpts}
+      </select>
+      <select class="form-input form-select" onchange="changeClassInstructorFilter(this.value)">
+        ${instructorOpts}
+      </select>
+      <button class="btn-primary" onclick="openScheduleClass()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5"  y1="12" x2="19" y2="12"/>
+        </svg>
+        Schedule New Class
+      </button>
+    </div>
   </div>
   <div class="table-wrap">
     <table class="data-table">
       <thead><tr>
-        <th>Class Name</th><th>Instructor</th><th>Schedule</th>
+        <th>ID</th><th>Class Name</th><th>Instructor</th><th>Schedule</th>
         <th>Duration</th><th>Location</th><th>Booked/Capacity</th><th>Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
+}
+
+function changeClassNameFilter(val) {
+  classNameFilter = val;
+  renderAdminView('classes');
+}
+
+function changeClassInstructorFilter(val) {
+  classInstructorFilter = val;
+  renderAdminView('classes');
 }
 // ── Class Management Modals ──
 
@@ -706,4 +966,163 @@ async function saveNewClass() {
     console.error(error);
     showToast('Server connection failed.', 'error');
   }
+}
+
+// ── View Class Bookings ──
+async function viewClassBookings(classId) {
+  try {
+    // Find the class details
+    const classInfo = classesData.find(c => (c.id) === classId);
+    if (!classInfo) {
+      showToast('Class not found.', 'error');
+      return;
+    }
+
+    // Fetch bookings from the backend
+    const response = await fetch(`http://localhost/fitlife-gym/backend/api/get_class_bookings.php?class_id=${classId}`);
+    const result = await response.json();
+
+    if (result.status !== 'success') {
+      showToast(result.message || 'Failed to load bookings.', 'error');
+      return;
+    }
+
+    const bookings = result.data || [];
+    
+    // Generate booking rows
+    let bookingRows = '';
+    if (bookings.length === 0) {
+      bookingRows = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">No bookings yet</td></tr>';
+    } else {
+      bookingRows = bookings.map(b => {
+        const statusColor = {
+          'booked': 'var(--p600)',
+          'attended': 'var(--success)',
+          'cancelled': 'var(--error)',
+          'no_show': 'var(--warning)'
+        }[b.status] || 'var(--p600)';
+        
+        const bookedDate = new Date(b.booked_at).toLocaleString('en-US', {
+          month: 'short', day: 'numeric', year: 'numeric', 
+          hour: 'numeric', minute: '2-digit', hour12: true
+        });
+        
+        return `
+          <tr>
+            <td>${b.member_name}</td>
+            <td>${b.email || '--'}</td>
+            <td>${b.phone || '--'}</td>
+            <td>${bookedDate}</td>
+            <td><span style="color:${statusColor}; font-weight:600;">${b.status.toUpperCase()}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Show modal with bookings table
+    showModal(`
+      <h3 class="modal-title">Class Bookings: ${classInfo.name}</h3>
+      <div style="margin-bottom:15px; color:#666;">
+        <strong>Instructor:</strong> ${classInfo.trainer} &nbsp;|&nbsp; 
+        <strong>Schedule:</strong> ${classInfo.startsAt} &nbsp;|&nbsp; 
+        <strong>Booked:</strong> ${bookings.length} / ${classInfo.capacity}
+      </div>
+      <div class="table-wrap" style="max-height:400px; overflow-y:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Member Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Booked At</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bookingRows}
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Close</button>
+      </div>
+    `);
+  } catch (error) {
+    console.error(error);
+    showToast('Failed to load bookings.', 'error');
+  }
+}
+
+// ── Financials & Billing Tab ──
+function renderBillingTab() {
+  // Generate rows for incoming payments
+  const paymentRows = paymentsData.map(p => `
+    <tr>
+      <td>${p.id}</td>
+      <td><strong>${p.memberName}</strong></td>
+      <td><span class="status-pill-active">${formatPhpCurrency(p.amount)}</span></td>
+      <td>${p.date}</td>
+      <td><span style="font-size: 12px; font-weight: bold; color: var(--s500);">${p.method.toUpperCase()}</span></td>
+      <td>${p.reference || '--'}</td>
+    </tr>
+  `).join('');
+
+  // Generate rows for outgoing trainer payouts
+  const payoutRows = payoutsData.map(p => {
+    const statusClass = p.status === 'paid' ? 'status-pill-active' : 'status-pill-banned';
+    return `
+    <tr>
+      <td>${p.id}</td>
+      <td><strong>${p.trainerName}</strong></td>
+      <td><span class="plan-badge-gold" style="color: #b45309; background: #fef3c7;">${formatPhpCurrency(p.amount)}</span></td>
+      <td>${p.date || '--'}</td>
+      <td><span class="${statusClass}">${p.status.toUpperCase()}</span></td>
+      <td class="action-cell">
+        ${p.status === 'pending' 
+          ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 12px;" onclick="alert('Approve Payout feature coming next!')">Approve</button>` 
+          : `<span style="color: var(--success); font-weight: bold; font-size: 12px;">✔ Cleared</span>`}
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+  <div class="tab-header">
+    <h2 class="tab-title">Financial Ledger</h2>
+    <button class="btn-primary" onclick="alert('Export to CSV coming soon!')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+        <polyline points="7 10 12 15 17 10"/>
+        <line x1="12" y1="15" x2="12" y2="3"/>
+      </svg>
+      Export Report
+    </button>
+  </div>
+  
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
+      
+      <div class="table-wrap">
+        <div style="padding: 15px 20px; border-bottom: 1px solid var(--s200); background: #f8fafc; border-radius: 12px 12px 0 0;">
+            <h3 style="margin: 0; font-size: 16px; color: var(--p600);">Incoming: Member Payments</h3>
+        </div>
+        <table class="data-table">
+          <thead><tr>
+            <th>ID</th><th>Member</th><th>Amount</th><th>Date</th><th>Method</th><th>Ref #</th>
+          </tr></thead>
+          <tbody>${paymentRows || '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payments recorded</td></tr>'}</tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
+        <div style="padding: 15px 20px; border-bottom: 1px solid var(--s200); background: #fdf4ff; border-radius: 12px 12px 0 0;">
+            <h3 style="margin: 0; font-size: 16px; color: #c026d3;">Outgoing: Trainer Payouts</h3>
+        </div>
+        <table class="data-table">
+          <thead><tr>
+            <th>ID</th><th>Trainer</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th>
+          </tr></thead>
+          <tbody>${payoutRows || '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payouts recorded</td></tr>'}</tbody>
+        </table>
+      </div>
+
+  </div>`;
 }

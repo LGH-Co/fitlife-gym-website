@@ -10,7 +10,34 @@ require_once '../config/db_mysql.php';
 
 try {
     // 3. Prepare and execute the SQL query based on your schema
-    $query = "SELECT member_id, rfid, first_name, last_name, email, join_date FROM members";
+    $query = "
+        SELECT
+            m.member_id,
+            m.rfid,
+            m.first_name,
+            m.last_name,
+            m.phone,
+            m.email,
+            m.join_date,
+            COALESCE(mt.type_name, 'Silver') AS plan_type,
+            COALESCE(ms.status, 'active') AS membership_status,
+            ms.end_date
+        FROM members m
+        LEFT JOIN membership ms
+            ON ms.membership_id = (
+                SELECT m2.membership_id
+                FROM membership m2
+                WHERE m2.member_id = m.member_id
+                ORDER BY m2.start_date DESC, m2.membership_id DESC
+                LIMIT 1
+            )
+        LEFT JOIN membership_plan mp
+            ON mp.membership_plan_id = ms.membership_plan_id
+        LEFT JOIN membership_type mt
+            ON mt.membership_type_id = mp.membership_type_id
+        ORDER BY m.member_id
+    ";
+    
     $stmt = $pdo->prepare($query);
     $stmt->execute();
     
