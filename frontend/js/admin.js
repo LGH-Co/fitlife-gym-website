@@ -1,5 +1,12 @@
 // frontend/js/admin.js
 
+function formatPhpCurrency(value) {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP'
+  }).format(Number(value) || 0);
+}
+
 function initAdmin() { renderAdminView('dashboard'); }
 
 function adminLogout() {
@@ -23,6 +30,7 @@ function renderAdminView(tab) {
   else if (tab === 'trainers')  content.innerHTML = renderTrainersTab();
   else if (tab === 'classes')   content.innerHTML = renderClassesTab();
   else if (tab === 'billing')   content.innerHTML = renderBillingTab();
+  else if (tab === 'logs')      content.innerHTML = renderLogsTab();
 }
 
 // ── Dashboard ──
@@ -31,7 +39,10 @@ function renderDashboard() {
   const activeCount  = members.filter(m => m.loggedIn).length;
   const totalMembers = members.length;
   const goldMembers = members.filter(m => m.plan.includes('Gold') && m.status === 'active').length;
-  const monthlyRev  = goldMembers * 1499;
+  const silverMembers = members.filter(m => m.plan.includes('Silver') && m.status === 'active').length;
+  const goldMonthlyRev = goldMembers * 1499;
+  const silverMonthlyRev = silverMembers * 999;
+  const monthlyRev  = goldMonthlyRev + silverMonthlyRev;
   const activeTrains = trainers.filter(t => t.loggedIn).length;
   const asOf         = formatDateTime(now);
 
@@ -86,7 +97,8 @@ function renderDashboard() {
         <span class="stat-icon green">$</span>
       </div>
       <div class="stat-value">${formatPhpCurrency(monthlyRev)}</div>
-      <div class="stat-sub">From Gold memberships</div>
+      <div class="stat-sub">Gold: ${formatPhpCurrency(goldMonthlyRev)}</div>
+      <div class="stat-sub">Silver: ${formatPhpCurrency(silverMonthlyRev)}</div>
       <div class="stat-datetime">as of ${asOf}</div>
     </div>
     <div class="stat-card">
@@ -130,7 +142,8 @@ let memberStatusFilter = 'all';
 
 function renderMembersTab() {
   const planOptions = ['all', ...new Set(members.map(m => m.plan))];
-  const statusOptions = ['all', ...new Set(members.map(m => m.status))];
+  // Force 'archived' into the status options to ensure the view is always available
+  const statusOptions = ['all', 'active', 'expired', 'banned', 'archived'];
   
   const planOpts = planOptions.map(p =>
     `<option value="${p}" ${memberPlanFilter === p ? 'selected' : ''}>${p === 'all' ? 'All Plans' : p}</option>`
@@ -142,7 +155,16 @@ function renderMembersTab() {
 
   const filteredMembers = members.filter(m => {
     const planMatch = memberPlanFilter === 'all' || m.plan === memberPlanFilter;
-    const statusMatch = memberStatusFilter === 'all' || m.status === memberStatusFilter;
+    
+    // LOGIC: If 'all' is selected, hide archived members to keep the list clean.
+    // If 'archived' is specifically selected, show only them.
+    let statusMatch = false;
+    if (memberStatusFilter === 'all') {
+      statusMatch = m.status !== 'archived'; 
+    } else {
+      statusMatch = m.status === memberStatusFilter;
+    }
+    
     return planMatch && statusMatch;
   });
 
@@ -150,27 +172,26 @@ function renderMembersTab() {
     const planCell = m.plan.includes('Gold')
         ? `<span class="plan-badge-gold">${m.plan}</span>`
         : `<span class="plan-text-silver">${m.plan}</span>`;
+    
+    // Dynamic status pill colors
     const statusCell = `<span class="status-pill-${m.status}">${m.status}</span>`;
     
-    return `
-    <tr>
-      <td>${m.memberId ?? m.id ?? '--'}</td>
-      <td><strong>${m.name}</strong></td>
-      <td>${m.contact}</td>
-      <td>${planCell}</td>
-      <td>${statusCell}</td>
-      <td>${m.expiry}</td>
-      <td>
-        <div class="metrics-table-grid">
-          <span class="mtg-item"><span class="mtg-label">Height</span> ${m.height ?? '--'} cm</span>
-          <span class="mtg-item"><span class="mtg-label">Weight</span> ${m.weight} kg</span>
-          <span class="mtg-item"><span class="mtg-label">BMI</span> ${m.bmi}</span>
-          <span class="mtg-item"><span class="mtg-label">Target</span> ${m.targetWeight ?? '--'} kg</span>
-        </div>
-        <div class="metrics-as-of">as of ${m.metricsUpdatedAt ?? '--'}</div>
-      </td>
-      <td class="action-cell">
-        <button class="tbl-btn-edit" onclick="openEditMember('${m.id}')" title="Edit">
+    let displayJoinDate = '--';
+    const rawJoinDate = m.join_date || m.joinDate;
+    if (rawJoinDate) {
+        const jd = new Date(rawJoinDate);
+        displayJoinDate = !isNaN(jd) ? `${jd.getMonth()+1}/${jd.getDate()}/${jd.getFullYear()}` : rawJoinDate;
+    }
+    
+    // If the member is archived, we might want to show a 'Restore' icon instead of delete
+    const actionButtons = m.status === 'archived' 
+      ? `<button class="tbl-btn-edit" onclick="restoreMember('${m.id}')" title="Restore Member" style="color: var(--success);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+         </button>`
+      : `<button class="tbl-btn-edit" onclick="openEditMember('${m.id}')" title="Edit">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -183,14 +204,35 @@ function renderMembersTab() {
             <path d="M10 11v6"/><path d="M14 11v6"/>
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
-        </button>
+        </button>`;
+    
+    return `
+    <tr>
+      <td>${m.memberId ?? m.id ?? '--'}</td>
+      <td><strong>${m.name}</strong></td>
+      <td>${m.contact}</td>
+      <td>${planCell}</td>
+      <td>${statusCell}</td>
+      <td><span style="color: var(--s600); font-weight: 500;">${displayJoinDate}</span></td>
+      <td>${m.expiry || m.end_date || '--'}</td>
+      <td>
+        <div class="metrics-table-grid">
+          <span class="mtg-item"><span class="mtg-label">Height</span> ${m.height ?? '--'} cm</span>
+          <span class="mtg-item"><span class="mtg-label">Weight</span> ${m.weight} kg</span>
+          <span class="mtg-item"><span class="mtg-label">BMI</span> ${m.bmi}</span>
+          <span class="mtg-item"><span class="mtg-label">Target</span> ${m.targetWeight ?? '--'} kg</span>
+        </div>
+        <div class="metrics-as-of">as of ${m.metricsUpdatedAt ?? '--'}</div>
+      </td>
+      <td class="action-cell">
+        ${actionButtons}
       </td>
     </tr>`;
   }).join('');
 
   return `
   <div class="tab-header">
-    <h2 class="tab-title">Member Database</h2>
+    <h2 class="tab-title">Member Database ${memberStatusFilter === 'archived' ? '<span style="color:var(--error)">(Archives)</span>' : ''}</h2>
     <div class="tab-header-right">
       <select class="form-input form-select" onchange="changeMemberPlanFilter(this.value)">
         ${planOpts}
@@ -211,7 +253,7 @@ function renderMembersTab() {
     <table class="data-table">
       <thead><tr>
         <th>ID</th><th>Name</th><th>Contact</th><th>Plan</th><th>Status</th>
-        <th>Expiry</th><th>Body Metrics</th><th>Actions</th>
+        <th>Join Date</th><th>Expiry</th><th>Body Metrics</th><th>Actions</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>
@@ -1001,8 +1043,11 @@ async function viewClassBookings(classId) {
           hour: 'numeric', minute: '2-digit', hour12: true
         });
         
+        // Hide cancelled bookings by default
+        const hideStyle = b.status === 'cancelled' ? 'display: none;' : '';
+        
         return `
-          <tr>
+          <tr style="${hideStyle}">
             <td style="white-space: nowrap;"><strong>${b.member_name}</strong></td>
             <td>${b.email || '--'}</td>
             <td style="white-space: nowrap;">${b.phone || '--'}</td>
@@ -1027,7 +1072,12 @@ async function viewClassBookings(classId) {
     // 2. Added overflow-x: auto to the table wrapper just in case they are on a small laptop screen
     showModal(`
       <div style="min-width: 800px;"> 
-        <h3 class="modal-title">Class Bookings: ${classInfo.name}</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h3 class="modal-title">Class Bookings: ${classInfo.name}</h3>
+          <label style="font-size: 12px; color: var(--s500);">
+            <input type="checkbox" id="show-cancelled" onchange="toggleCancelledBookings(this.checked)"> Show Cancelled
+          </label>
+        </div>
         <div style="margin-bottom:15px; color:#666;">
           <strong>Instructor:</strong> ${classInfo.trainer} &nbsp;|&nbsp; 
           <strong>Schedule:</strong> ${classInfo.startsAt} &nbsp;|&nbsp; 
@@ -1045,7 +1095,7 @@ async function viewClassBookings(classId) {
                 <th style="text-align: center;">Action</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="booking-table-body">
               ${bookingRows}
             </tbody>
           </table>
@@ -1089,72 +1139,145 @@ async function cancelClassBooking(bookingId, classId) {
   }
 }
 
+// ── Toggle Cancelled Bookings Visibility ──
+function toggleCancelledBookings(show) {
+  const rows = document.querySelectorAll('#booking-table-body tr');
+  rows.forEach(row => {
+    if (row.innerText.includes('CANCELLED')) {
+      row.style.display = show ? 'table-row' : 'none';
+    }
+  });
+}
+
 // ── Financials & Billing Tab ──
 function renderBillingTab() {
-  const paymentRows = paymentsData.map(p => `
-    <tr>
-      <td>${p.id}</td>
-      <td><strong>${p.memberName}</strong></td>
-      <td><span class="status-pill-active">${formatPhpCurrency(p.amount)}</span></td>
-      <td>${p.date}</td>
-      <td><span style="font-size: 12px; font-weight: bold; color: var(--s500);">${p.method.toUpperCase()}</span></td>
-      <td>${p.reference || '--'}</td>
-    </tr>
-  `).join('');
+  // 1. Safety check: Initialize row variables
+  let paymentRowsHtml = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payments recorded in database.</td></tr>';
+  let payoutRowsHtml = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payouts recorded in database.</td></tr>';
 
-  const payoutRows = payoutsData.map(p => {
-    const statusClass = p.status === 'paid' ? 'status-pill-active' : 'status-pill-banned';
-    return `
-    <tr>
-      <td>${p.id}</td>
-      <td><strong>${p.trainerName}</strong></td>
-      <td><span class="plan-badge-gold" style="color: #b45309; background: #fef3c7;">${formatPhpCurrency(p.amount)}</span></td>
-      <td>${p.date || '--'}</td>
-      <td><span class="${statusClass}">${p.status.toUpperCase()}</span></td>
-      <td class="action-cell">
-        ${p.status === 'pending' 
-          ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 12px;" onclick="alert('Approve Payout feature coming next!')">Approve</button>` 
-          : `<span style="color: var(--success); font-weight: bold; font-size: 12px;">✔ Cleared</span>`}
-      </td>
-    </tr>`;
-  }).join('');
+  try {
+    // 2. Build Payment Rows if data exists
+    if (typeof paymentsData !== 'undefined' && paymentsData.length > 0) {
+      paymentRowsHtml = paymentsData.map(p => `
+        <tr>
+          <td>${p.id || '--'}</td>
+          <td><strong>${p.memberName || 'Unknown'}</strong></td>
+          <td><span class="status-pill-active">${formatPhpCurrency(p.amount)}</span></td>
+          <td>${p.date ? new Date(p.date).toLocaleDateString() : '--'}</td>
+          <td><span style="font-size: 11px; font-weight: bold; color: var(--s500);">${(p.method || 'N/A').toUpperCase()}</span></td>
+          <td style="font-family: monospace;">${p.reference || '--'}</td>
+        </tr>
+      `).join('');
+    }
 
+    // 3. Build Payout Rows if data exists
+    if (typeof payoutsData !== 'undefined' && payoutsData.length > 0) {
+      payoutRowsHtml = payoutsData.map(p => {
+        const statusClass = p.status === 'paid' ? 'status-pill-active' : 'status-pill-banned';
+        const displayStatus = (p.status || 'pending').toUpperCase();
+        return `
+        <tr>
+          <td>${p.id || '--'}</td>
+          <td><strong>${p.trainerName || 'Unknown'}</strong></td>
+          <td><span class="plan-badge-gold" style="color: #b45309; background: #fef3c7;">${formatPhpCurrency(p.amount)}</span></td>
+          <td>${p.date ? new Date(p.date).toLocaleDateString() : '--'}</td>
+          <td><span class="${statusClass}">${displayStatus}</span></td>
+          <td class="action-cell">
+            ${p.status === 'pending' 
+              ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="approvePayout(${p.id})">Approve</button>` 
+              : `<span style="color: var(--success); font-weight: bold; font-size: 11px;">✔ Paid</span>`}
+          </td>
+        </tr>`;
+      }).join('');
+    }
+  } catch (err) {
+    console.error("Error processing billing data:", err);
+  }
+
+  // 4. Return the Final HTML Structure
   return `
   <div class="tab-header">
     <h2 class="tab-title">Financial Ledger</h2>
-    <button class="btn-primary" onclick="alert('Export to CSV coming soon!')">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-        <polyline points="7 10 12 15 17 10"/>
-        <line x1="12" y1="15" x2="12" y2="3"/>
-      </svg>
-      Export Report
-    </button>
+    <div class="tab-header-right">
+       <button class="btn-secondary" onclick="console.log('Export CSV clicked')" style="font-size: 12px;">
+          📊 Export CSV
+       </button>
+    </div>
   </div>
   
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start;">
+  <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start;">
       <div class="table-wrap">
-        <div style="padding: 15px 20px; border-bottom: 1px solid var(--s200); background: #f8fafc; border-radius: 12px 12px 0 0;">
-            <h3 style="margin: 0; font-size: 16px; color: var(--p600);">Incoming: Member Payments</h3>
+        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #f8fafc; display: flex; justify-content: space-between;">
+            <h3 style="margin: 0; font-size: 14px; color: var(--p600);">Incoming: Revenue</h3>
         </div>
         <table class="data-table">
-          <thead><tr>
-            <th>ID</th><th>Member</th><th>Amount</th><th>Date</th><th>Method</th><th>Ref #</th>
-          </tr></thead>
-          <tbody>${paymentRows || '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payments recorded</td></tr>'}</tbody>
+          <thead><tr><th>ID</th><th>Member</th><th>Amount</th><th>Date</th><th>Method</th><th>Ref</th></tr></thead>
+          <tbody>${paymentRowsHtml}</tbody>
         </table>
       </div>
 
       <div class="table-wrap">
-        <div style="padding: 15px 20px; border-bottom: 1px solid var(--s200); background: #fdf4ff; border-radius: 12px 12px 0 0;">
-            <h3 style="margin: 0; font-size: 16px; color: #c026d3;">Outgoing: Trainer Payouts</h3>
+        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #fdf4ff; display: flex; justify-content: space-between;">
+            <h3 style="margin: 0; font-size: 14px; color: #c026d3;">Outgoing: Payouts</h3>
         </div>
         <table class="data-table">
-          <thead><tr>
-            <th>ID</th><th>Trainer</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th>
-          </tr></thead>
-          <tbody>${payoutRows || '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payouts recorded</td></tr>'}</tbody>
+          <thead><tr><th>ID</th><th>Trainer</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
+          <tbody>${payoutRowsHtml}</tbody>
         </table>
       </div>
+  </div>`;
+}
+
+// ── Cybersecurity System Logs Tab ──
+function renderLogsTab() {
+  let rows = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#999;">No forensic logs found in MongoDB.</td></tr>';
+  
+  if (auditLogsData && auditLogsData.length > 0) {
+    rows = auditLogsData.map(log => {
+      // Dynamic color coding based on action severity
+      let actionColor = 'var(--p600)';
+      const actionText = log.action ? log.action.toLowerCase() : '';
+      
+      if (actionText.includes('delete') || actionText.includes('archive') || actionText.includes('remove')) {
+          actionColor = 'var(--error)'; // Red
+      } else if (actionText.includes('add') || actionText.includes('create') || actionText.includes('insert')) {
+          actionColor = 'var(--success)'; // Green
+      } else if (actionText.includes('edit') || actionText.includes('update')) {
+          actionColor = '#b45309'; // Orange
+      }
+
+      // We replace underscores with spaces so "UPDATE_MEMBER_STATUS" becomes "UPDATE MEMBER STATUS"
+      const formattedAction = log.action.replace(/_/g, ' ');
+
+      return `
+      <tr>
+        <td style="font-family: monospace; font-size: 13px; color: var(--s500);">${log.timestamp}</td>
+        <td><strong>${log.admin}</strong></td>
+        <td><span style="color: ${actionColor}; font-weight: 600;">${formattedAction}</span></td>
+        <td style="font-family: monospace; font-size: 13px; color: var(--p600);">${log.target}</td>
+        <td style="font-size: 12px; color: var(--s500); max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title='${log.details}'>
+          ${log.details}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  return `
+  <div class="tab-header">
+    <h2 class="tab-title" style="color: var(--error);">Security & Audit Logs</h2>
+    <button class="btn-secondary" onclick="alert('Access Denied: Only root admins can clear forensic data.')" style="border-color: var(--error); color: var(--error);">
+      Clear Logs
+    </button>
+  </div>
+  <div class="table-wrap">
+    <div style="padding: 15px 20px; border-bottom: 1px solid var(--s200); background: #fef2f2; border-radius: 12px 12px 0 0;">
+        <h3 style="margin: 0; font-size: 14px; color: var(--error);">Live MongoDB Security Feed</h3>
+    </div>
+    <table class="data-table">
+      <thead><tr>
+        <th>Timestamp</th><th>Actor ID</th><th>Action Taken</th><th>Target RFID</th><th>Details</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
   </div>`;
 }

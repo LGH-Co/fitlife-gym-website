@@ -22,9 +22,10 @@ let peakHoursData = [
 // 1. Initialize empty arrays
 let members = [];
 let trainers = [];
-let classesData = []; // Array to hold class schedule
+let classesData = []; 
 let paymentsData = [];
 let payoutsData = [];
+let auditLogsData = [];
 
 // 2. Fetch and map Members from MySQL
 async function loadMembers() {
@@ -161,37 +162,42 @@ async function loadAttendanceData() {
 }
 // 6. Fetch Member Payments
 async function loadPayments() {
-    try {
-        const res = await fetch('http://localhost/fitlife-gym/backend/api/get_payments.php');
-        const json = await res.json();
-        if (json.status === 'success') {
-            paymentsData = json.data.map(p => ({
-                id: p.payment_id,
-                memberName: p.member_name,
-                amount: p.amount,
-                date: new Date(p.payment_date).toLocaleDateString(),
-                method: p.payment_method,
-                reference: p.reference_number
-            }));
-        }
-    } catch (e) { console.error("🔴 Failed to load payments:", e); }
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/get_payments.php');
+    const json = await res.json();
+    if (json.status === 'success') {
+      paymentsData = json.data;
+    }
+  } catch (e) { console.error("Error loading payments:", e); }
 }
 
-// 7. Fetch Trainer Payouts
 async function loadPayouts() {
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/get_payouts.php');
+    const json = await res.json();
+    if (json.status === 'success') {
+      payoutsData = json.data;
+    }
+  } catch (e) { console.error("Error loading payouts:", e); }
+}
+
+// 8. Fetch Forensic Audit Logs from MongoDB
+async function loadAuditLogs() {
     try {
-        const res = await fetch('http://localhost/fitlife-gym/backend/api/get_payouts.php');
+        const res = await fetch('http://localhost/fitlife-gym/backend/api/get_audit_logs.php');
         const json = await res.json();
         if (json.status === 'success') {
-            payoutsData = json.data.map(p => ({
-                id: p.payout_id,
-                trainerName: p.trainer_name,
-                amount: p.amount,
-                date: p.payout_date ? new Date(p.payout_date).toLocaleDateString() : null,
-                status: p.status
+            // Map the MongoDB keys to the UI keys
+            auditLogsData = json.data.map(log => ({
+                timestamp: log.timestamp,
+                admin: log.admin || log.actor_id,
+                action: log.action,
+                target: log.target || log.target_rfid,
+                details: log.details
             }));
+            console.log("🟢 Forensic Logs Loaded:", auditLogsData.length);
         }
-    } catch (e) { console.error("🔴 Failed to load payouts:", e); }
+    } catch (e) { console.error("🔴 Failed to load audit logs:", e); }
 }
 
 // Utility functions for UI
@@ -206,6 +212,12 @@ function getFilteredSessions(trainer, filterMonth) {
   return trainer.sessions.filter(s => s.month === month && s.year === year).length;
 }
 
+function formatPhpCurrency(value) {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP'
+  }).format(Number(value) || 0);
+}
 // Load all data sources as soon as the script runs
 Promise.all([
     loadMembers(), 
@@ -213,7 +225,8 @@ Promise.all([
     loadClasses(), 
     loadAttendanceData(),
     loadPayments(), 
-    loadPayouts()
+    loadPayouts(),
+    loadAuditLogs()
 ]).then(() => {
     console.log("✅ All Live Database Systems Connected!");
 });

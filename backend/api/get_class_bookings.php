@@ -29,7 +29,7 @@ try {
             b.status
         FROM bookings b
         JOIN members m ON b.member_id = m.member_id
-        WHERE b.class_id = ? AND b.status != 'cancelled'  -- NEW: Hide cancelled members
+        WHERE b.class_id = ?
         ORDER BY b.booked_at ASC
     ";
     
