@@ -11,13 +11,6 @@ function handleRFIDScan() {
   const rfid  = input.value.trim().toUpperCase();
   if (!rfid) return;
 
-<<<<<<< HEAD:Frontend/js/kiosk.js
-  const member = members.find(m => m.rfid.toUpperCase() === rfid || m.id.toUpperCase() === rfid);
-  if (member) { toggleMemberStatus(member); renderMemberCard(member); input.value = ''; startSessionTimer(() => { document.getElementById('kiosk-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('kiosk-result').innerHTML = ''; }); return; }
-
-  const trainer = trainers.find(t => t.rfid.toUpperCase() === rfid || t.id.toUpperCase() === rfid);
-  if (trainer) { toggleTrainerStatus(trainer); renderTrainerCard(trainer); input.value = ''; startSessionTimer(() => { document.getElementById('kiosk-screen').classList.add('hidden'); document.getElementById('login-screen').classList.remove('hidden'); document.getElementById('kiosk-result').innerHTML = ''; }); return; }
-=======
   const member = members.find(m =>
     m.rfid.toUpperCase() === rfid || m.id.toUpperCase() === rfid);
   if (member) {
@@ -35,7 +28,6 @@ function handleRFIDScan() {
     input.value = '';
     return;
   }
->>>>>>> 563acea (Added body metrics and change the contents):js/kiosk.js
 
   document.getElementById('kiosk-result').innerHTML = `
     <div class="error-card">
