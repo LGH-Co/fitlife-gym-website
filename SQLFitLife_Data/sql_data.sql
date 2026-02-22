@@ -20,10 +20,10 @@ VALUES
 
 INSERT INTO membership_plan (membership_plan_id, membership_type_id, plan_name, duration_months, price, is_active)
 VALUES
-(1, 1, 'Basic - 1 Month', 1, 999.00, 1),
-(2, 1, 'Basic - 3 Months', 3, 2799.00, 1),
-(3, 2, 'Premium - 1 Month', 1, 1499.00, 1),
-(4, 2, 'Premium - 12 Months', 12, 15999.00, 1);
+(1, 1, 'Silver - 1 Month', 1, 999.00, 1),
+(2, 1, 'Silver - 3 Months', 3, 2799.00, 1),
+(3, 2, 'Gold - 1 Month', 1, 1499.00, 1),
+(4, 2, 'Gold - 12 Months', 12, 15999.00, 1);
 
 INSERT INTO members (member_id, rfid, first_name, middle_name, last_name, phone, email, join_date)
 VALUES
