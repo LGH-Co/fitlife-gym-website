@@ -37,8 +37,16 @@ VALUES
 
 INSERT INTO classes (class_id, class_name, service_type_id, trainer_id, starts_at, duration_minutes, capacity, location)
 VALUES
-(1, 'Morning Yoga', 3, 2, '2026-02-25 08:00:00', 60, 20, 'Studio A'),
-(2, 'HIIT Express', 3, 1, '2026-02-25 18:00:00', 45, 25, 'Studio B');
+(1, 2000000002, 'Bea', NULL, 'Lim', '09170002222', 'bea@fitlife.com', 'Yoga & Mobility', '2025-11-01', 1),
+(2, 1474791848, 'Jordan', 'Lee', 'Smith', '09000000102', 'jsmith@fitlife.local', 'Strength Training', '2025-11-05', 1),
+(3, 1585802959, 'Sarah', NULL, 'Chen', '09000000103', 'schen@fitlife.local', 'Yoga & Mindfulness', '2025-11-10', 1),
+(4, 1696913060, 'Marcus', 'Aurelius', 'Vance', '09000000104', 'mvance@fitlife.local', 'HIIT', '2025-11-12', 1),
+(5, 1707024171, 'Elena', 'Rose', 'Rodriguez', '09000000105', 'erodriguez@fitlife.local', 'Cardio Recovery', '2025-11-15', 1),
+(6, 1818135282, 'David', NULL, 'Kim', '09000000106', 'dkim@fitlife.local', 'Powerlifting', '2025-11-20', 1),
+(7, 1929246393, 'Maya', 'Grace', 'Thompson', '09000000107', 'mthompson@fitlife.local', 'Nutrition Coaching', '2025-11-22', 1),
+(8, 2030357404, 'Julian', 'Blake', 'Foster', '09000000108', 'jfoster@fitlife.local', 'Athletic Performance', '2025-11-25', 1),
+(9, 2141468515, 'Sophia', NULL, 'Martinez', '09000000109', 'smartinez@fitlife.local', 'Pilates', '2025-11-28', 1),
+(10, 2252579626, 'Liam', 'James', 'O-Brian', '09000000110', 'lobrian@fitlife.local', 'Functional Fitness', '2025-12-01', 0);
 
 INSERT INTO membership (membership_id, member_id, membership_plan_id, start_date, end_date, status)
 VALUES
