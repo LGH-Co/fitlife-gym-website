@@ -1149,80 +1149,71 @@ function toggleCancelledBookings(show) {
   });
 }
 
-// ── Financials & Billing Tab ──
+// ── Updated Financials & Billing Tab ──
 function renderBillingTab() {
-  // 1. Safety check: Initialize row variables
-  let paymentRowsHtml = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payments recorded in database.</td></tr>';
-  let payoutRowsHtml = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payouts recorded in database.</td></tr>';
+  let paymentRows = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payments found.</td></tr>';
+  let payoutRows = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payouts found.</td></tr>';
 
-  try {
-    // 2. Build Payment Rows if data exists
-    if (typeof paymentsData !== 'undefined' && paymentsData.length > 0) {
-      paymentRowsHtml = paymentsData.map(p => `
-        <tr>
-          <td>${p.id || '--'}</td>
-          <td><strong>${p.memberName || 'Unknown'}</strong></td>
-          <td><span class="status-pill-active">${formatPhpCurrency(p.amount)}</span></td>
-          <td>${p.date ? new Date(p.date).toLocaleDateString() : '--'}</td>
-          <td><span style="font-size: 11px; font-weight: bold; color: var(--s500);">${(p.method || 'N/A').toUpperCase()}</span></td>
-          <td style="font-family: monospace;">${p.reference || '--'}</td>
-        </tr>
-      `).join('');
-    }
-
-    // 3. Build Payout Rows if data exists
-    if (typeof payoutsData !== 'undefined' && payoutsData.length > 0) {
-      payoutRowsHtml = payoutsData.map(p => {
-        const statusClass = p.status === 'paid' ? 'status-pill-active' : 'status-pill-banned';
-        const displayStatus = (p.status || 'pending').toUpperCase();
-        return `
-        <tr>
-          <td>${p.id || '--'}</td>
-          <td><strong>${p.trainerName || 'Unknown'}</strong></td>
-          <td><span class="plan-badge-gold" style="color: #b45309; background: #fef3c7;">${formatPhpCurrency(p.amount)}</span></td>
-          <td>${p.date ? new Date(p.date).toLocaleDateString() : '--'}</td>
-          <td><span class="${statusClass}">${displayStatus}</span></td>
-          <td class="action-cell">
-            ${p.status === 'pending' 
-              ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="approvePayout(${p.id})">Approve</button>` 
-              : `<span style="color: var(--success); font-weight: bold; font-size: 11px;">✔ Paid</span>`}
-          </td>
-        </tr>`;
-      }).join('');
-    }
-  } catch (err) {
-    console.error("Error processing billing data:", err);
+  // 1. Process Payments from your SQL Script
+  if (window.paymentsData && paymentsData.length > 0) {
+    paymentRows = paymentsData.map(p => `
+      <tr>
+        <td>${p.id}</td>
+        <td><strong>${p.memberName || 'Member #'+p.member_id}</strong></td>
+        <td><span class="status-pill-active">${formatPhpCurrency(p.amount)}</span></td>
+        <td>${p.date ? new Date(p.date).toLocaleDateString() : 'Feb 23, 2026'}</td>
+        <td><span style="font-size: 11px; font-weight: bold; color: var(--s500);">${p.method.toUpperCase()}</span></td>
+        <td style="font-family: monospace;">${p.reference || 'N/A'}</td>
+      </tr>
+    `).join('');
   }
 
-  // 4. Return the Final HTML Structure
+  // 2. Process Payouts from your SQL Script
+  if (window.payoutsData && payoutsData.length > 0) {
+    payoutRows = payoutsData.map(p => {
+      const isPaid = p.status === 'paid';
+      return `
+      <tr>
+        <td>${p.id}</td>
+        <td><strong>${p.trainerName || 'Trainer #'+p.trainer_id}</strong></td>
+        <td><span class="plan-badge-gold" style="color: #b45309; background: #fef3c7;">${formatPhpCurrency(p.amount)}</span></td>
+        <td>${p.date || 'Pending'}</td>
+        <td><span class="${isPaid ? 'status-pill-active' : 'status-pill-banned'}">${p.status.toUpperCase()}</span></td>
+        <td class="action-cell">
+          ${!isPaid 
+            ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="approvePayout(${p.id})">Approve</button>` 
+            : `<span style="color: var(--success); font-weight: bold; font-size: 11px;">✔ Paid</span>`}
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
   return `
   <div class="tab-header">
     <h2 class="tab-title">Financial Ledger</h2>
     <div class="tab-header-right">
-       <button class="btn-secondary" onclick="console.log('Export CSV clicked')" style="font-size: 12px;">
-          📊 Export CSV
-       </button>
+       <button class="btn-secondary" onclick="exportFinancials()" style="font-size: 12px;">📊 Export CSV</button>
     </div>
   </div>
   
   <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start;">
       <div class="table-wrap">
-        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #f8fafc; display: flex; justify-content: space-between;">
+        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #f8fafc;">
             <h3 style="margin: 0; font-size: 14px; color: var(--p600);">Incoming: Revenue</h3>
         </div>
         <table class="data-table">
           <thead><tr><th>ID</th><th>Member</th><th>Amount</th><th>Date</th><th>Method</th><th>Ref</th></tr></thead>
-          <tbody>${paymentRowsHtml}</tbody>
+          <tbody>${paymentRows}</tbody>
         </table>
       </div>
 
       <div class="table-wrap">
-        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #fdf4ff; display: flex; justify-content: space-between;">
+        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #fdf4ff;">
             <h3 style="margin: 0; font-size: 14px; color: #c026d3;">Outgoing: Payouts</h3>
         </div>
         <table class="data-table">
           <thead><tr><th>ID</th><th>Trainer</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody>${payoutRowsHtml}</tbody>
+          <tbody>${payoutRows}</tbody>
         </table>
       </div>
   </div>`;
