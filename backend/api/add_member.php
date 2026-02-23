@@ -20,9 +20,8 @@ if (
 ) {
     try {
         // Prepare the SQL statement matching your schema
-        $query = "INSERT INTO members (member_id, rfid, first_name, last_name, phone, email, join_date, membership_status) 
-                  VALUES (:member_id, :rfid, :first_name, :last_name, :phone, :email, :join_date, :status)";
-
+        $query = "INSERT INTO members (member_id, rfid, first_name, last_name, phone, email, join_date, status) 
+          VALUES (:member_id, :rfid, :first_name, :last_name, :phone, :email, :join_date, :status)";
         $stmt = $pdo->prepare($query);
 
         // Bind the validated values from the UI

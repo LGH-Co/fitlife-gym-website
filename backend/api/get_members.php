@@ -8,7 +8,9 @@ require_once '../config/db_mysql.php';
 
 try {
     // FIX: SELECT * grabs all columns automatically, preventing the 1054 error!
-    $query = "SELECT * FROM members ORDER BY member_id ASC";
+    $query = "SELECT m.member_id, m.rfid, m.first_name, m.last_name, m.phone, m.email, m.join_date, m.status, m.expiry_date 
+          FROM members m 
+          ORDER BY m.member_id ASC";
     
     $stmt = $pdo->prepare($query);
     $stmt->execute();
@@ -28,7 +30,7 @@ try {
             "phone"            => $row['phone'] ?? '',
             "email"            => $row['email'] ?? '',
             "contact"          => ($row['email'] ?? '') . ' | ' . ($row['phone'] ?? ''),
-            "status"           => $row['membership_status'] ?? 'active', // Safely maps your DB column to the UI
+            "status" => $row['status'] ?? 'active',
             "joinDate"         => $row['join_date'] ?? date('Y-m-d'),
             "expiry"           => $row['expiry_date'] ?? '2026-03-01',
             "plan"             => "Silver", // Safe fallback
@@ -37,7 +39,7 @@ try {
             "bmi"              => 24.2,
             "targetWeight"     => 65,
             "loggedIn"         => false,
-            "loginTime"        => null
+            "loginTime"        => null,
         ];
     }
 

@@ -360,10 +360,13 @@ function saveNewMember() {
   if (!emailRegex.test(email)) {
     showToast('Please enter a valid email address format.', 'error'); return;
   }
-  if (members.find(m => m.rfid.toUpperCase() === rfid.toUpperCase())) {
-    showToast('RFID already exists in the system.', 'error'); return;
+  // if (members.find(m => m.rfid.toUpperCase() === rfid.toUpperCase())) {
+  //   showToast('RFID already exists in the system.', 'error'); return;
+  // }
+  // REPLACE IT WITH THIS BULLETPROOF VERSION:
+  if (members.find(m => String(m.rfid).toUpperCase() === String(rfid).toUpperCase())) {
+      showToast('RFID already exists in the system.', 'error'); return;
   }
-
   // ── PROCEED TO SAVE ──
   const d = new Date();
   d.setMonth(d.getMonth() + 1);
