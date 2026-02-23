@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS members (
 
 CREATE TABLE IF NOT EXISTS trainers (
     trainer_id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NULL,
     rfid BIGINT UNSIGNED NOT NULL UNIQUE,
     first_name VARCHAR(50) NOT NULL,
     middle_name VARCHAR(50),
@@ -34,7 +35,12 @@ CREATE TABLE IF NOT EXISTS trainers (
     hire_date DATE NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_trainers_email (email)
+    INDEX idx_trainers_email (email),
+    INDEX idx_trainers_admin_id (admin_id),
+    CONSTRAINT fk_trainers_admin
+        FOREIGN KEY (admin_id) REFERENCES admin_account(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS service_type (
@@ -69,12 +75,17 @@ CREATE TABLE IF NOT EXISTS membership_plan (
 
 CREATE TABLE IF NOT EXISTS membership (
     membership_id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NULL,
     member_id INT NOT NULL,
     membership_plan_id INT NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     status ENUM('active','expired','cancelled') NOT NULL DEFAULT 'active',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_membership_admin
+        FOREIGN KEY (admin_id) REFERENCES admin_account(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
     CONSTRAINT fk_membership_member
         FOREIGN KEY (member_id) REFERENCES members(member_id)
         ON UPDATE CASCADE
@@ -82,7 +93,8 @@ CREATE TABLE IF NOT EXISTS membership (
     CONSTRAINT fk_membership_plan
         FOREIGN KEY (membership_plan_id) REFERENCES membership_plan(membership_plan_id)
         ON UPDATE CASCADE
-        ON DELETE RESTRICT
+        ON DELETE RESTRICT,
+    INDEX idx_membership_admin_id (admin_id)
 );
 
 CREATE TABLE IF NOT EXISTS classes (
@@ -108,11 +120,16 @@ CREATE TABLE IF NOT EXISTS classes (
 
 CREATE TABLE IF NOT EXISTS bookings (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NULL,
     member_id INT NOT NULL,
     class_id INT NOT NULL,
     booked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status ENUM('booked','cancelled','attended','no_show') NOT NULL DEFAULT 'booked',
     notes VARCHAR(255),
+    CONSTRAINT fk_booking_admin
+        FOREIGN KEY (admin_id) REFERENCES admin_account(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
     CONSTRAINT fk_booking_member
         FOREIGN KEY (member_id) REFERENCES members(member_id)
         ON UPDATE CASCADE
@@ -121,7 +138,8 @@ CREATE TABLE IF NOT EXISTS bookings (
         FOREIGN KEY (class_id) REFERENCES classes(class_id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
-    UNIQUE KEY uq_member_class (member_id, class_id)
+    UNIQUE KEY uq_member_class (member_id, class_id),
+    INDEX idx_bookings_admin_id (admin_id)
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -151,6 +169,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE TABLE IF NOT EXISTS payments (
     payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NULL,
     member_id INT NOT NULL,
     membership_id INT NULL,
     booking_id INT NULL,
@@ -159,6 +178,10 @@ CREATE TABLE IF NOT EXISTS payments (
     payment_datetime DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     method ENUM('cash','gcash','card','bank_transfer','other') NOT NULL DEFAULT 'cash',
     reference_no VARCHAR(60),
+    CONSTRAINT fk_payment_admin
+        FOREIGN KEY (admin_id) REFERENCES admin_account(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
     CONSTRAINT fk_payment_member
         FOREIGN KEY (member_id) REFERENCES members(member_id)
         ON UPDATE CASCADE
@@ -175,7 +198,8 @@ CREATE TABLE IF NOT EXISTS payments (
         FOREIGN KEY (session_id) REFERENCES sessions(session_id)
         ON UPDATE CASCADE
         ON DELETE SET NULL,
-    INDEX idx_payments_datetime (payment_datetime)
+    INDEX idx_payments_datetime (payment_datetime),
+    INDEX idx_payments_admin_id (admin_id)
 );
 
 CREATE TABLE IF NOT EXISTS trainer_payouts (
