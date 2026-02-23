@@ -32,34 +32,29 @@ async function loadMembers() {
     try {
         const res = await fetch('http://localhost/fitlife-gym/backend/api/get_members.php');
         const json = await res.json();
+        
         if (json.status === 'success') {
-            members = json.data.map(dbM => ({
-                memberId: dbM.member_id,
-                id: 'M' + dbM.member_id.toString().padStart(3, '0'),
-                rfid: dbM.rfid.toString(),
-                
-                // Keep raw data isolated for the Edit Modal
-                firstName: dbM.first_name,
-                lastName: dbM.last_name,
-                phone: dbM.phone || '', // Handle nulls safely if phone is empty
-                email: dbM.email,
-                
-                // Combined string for the Main Table display
-                name: `${dbM.first_name} ${dbM.last_name}`,
-                contact: `${dbM.email} | ${dbM.phone || 'No Phone'}`, 
-                
-                                plan: dbM.plan_type || 'Silver - 1 month',
-                                status: dbM.membership_status || 'active',
-                                expiry: dbM.end_date
-                                    ? new Date(dbM.end_date).toLocaleDateString('en-US')
-                                    : 'N/A',
-                height: 170, weight: 70, bmi: 24.2, targetWeight: 65,
-                metricsUpdatedAt: dbM.join_date,
-                loggedIn: false, loginTime: null, sessions: []
+            // PHP is already formatting the data perfectly. 
+            // We just ensure IDs are strings so your Edit/Delete buttons don't break.
+            members = json.data.map(m => ({
+                ...m,
+                id: String(m.id),
+                memberId: String(m.memberId)
             }));
-            console.log("🟢 Members Loaded with expanded fields:", members.length);
+            
+            console.log("🟢 Members Loaded:", members.length);
+            
+            // Auto-refresh the table instantly if you are on the Members tab
+            const activeTab = document.querySelector('.tab-btn.active');
+            if (activeTab && activeTab.dataset.tab === 'members') {
+                if (typeof renderAdminView === 'function') renderAdminView('members');
+            }
+        } else {
+            console.error("🔴 Backend Error:", json.message);
         }
-    } catch (e) { console.error("🔴 Failed to load members:", e); }
+    } catch (e) { 
+        console.error("🔴 Failed to parse members JSON:", e); 
+    }
 }
 
 // 3. Fetch and map Trainers from MySQL

@@ -160,9 +160,9 @@ function renderMembersTab() {
     // If 'archived' is specifically selected, show only them.
     let statusMatch = false;
     if (memberStatusFilter === 'all') {
-      statusMatch = m.status !== 'archived'; 
+      statusMatch = m.membership_status !== 'archived'; 
     } else {
-      statusMatch = m.status === memberStatusFilter;
+      statusMatch = m.membership_status === memberStatusFilter;
     }
     
     return planMatch && statusMatch;
@@ -335,23 +335,36 @@ function openRegisterMember() {
 }
 
 function saveNewMember() {
-  const fname  = document.getElementById('m-fname').value.trim();
-  const lname  = document.getElementById('m-lname').value.trim();
-  const phone  = document.getElementById('m-phone').value.trim();
-  const email  = document.getElementById('m-email').value.trim();
-  const rfid   = document.getElementById('m-rfid').value.trim();
-  const plan   = document.getElementById('m-plan').value;
-  
+  const fname = document.getElementById('m-fname').value.trim();
+  const lname = document.getElementById('m-lname').value.trim();
+  const phone = document.getElementById('m-phone').value.trim();
+  const email = document.getElementById('m-email').value.trim();
+  const rfid  = document.getElementById('m-rfid').value.trim();
+  const plan  = document.getElementById('m-plan').value;
+
+  // ── REGEX DEFINITIONS ──
+  const nameRegex = /^[A-Za-z\s\-]+$/;          // Strictly letters, spaces, or hyphens
+  const phoneRegex = /^09\d{9}$/;               // Starts with 09, followed by 9 digits (11 total)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Standard email format
+
+  // ── VALIDATION PHASE ──
   if (!fname || !lname || !rfid) {
     showToast('First Name, Last Name, and RFID are required.', 'error'); return;
   }
-  if (!/^\d{11}$/.test(phone)) {
-    showToast('Phone Number must be exactly 11 digits.', 'error'); return;
+  if (!nameRegex.test(fname) || !nameRegex.test(lname)) {
+    showToast('Names must contain only letters (no numbers allowed).', 'error'); return;
+  }
+  if (!phoneRegex.test(phone)) {
+    showToast('Phone must start with 09 and contain exactly 11 digits.', 'error'); return;
+  }
+  if (!emailRegex.test(email)) {
+    showToast('Please enter a valid email address format.', 'error'); return;
   }
   if (members.find(m => m.rfid.toUpperCase() === rfid.toUpperCase())) {
     showToast('RFID already exists in the system.', 'error'); return;
   }
 
+  // ── PROCEED TO SAVE ──
   const d = new Date();
   d.setMonth(d.getMonth() + 1);
   const expiry = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
@@ -363,7 +376,7 @@ function saveNewMember() {
     name: `${fname} ${lname}`,
     phone: phone, email: email,
     contact: `${email} | ${phone}`, 
-    plan: plan, status: 'active', expiry: expiry,
+    plan: plan, membership_status: 'active', expiry: expiry,
     height: parseFloat(document.getElementById('m-height').value) || 0, 
     weight: parseFloat(document.getElementById('m-weight').value) || 0, 
     bmi: 0, 
@@ -729,25 +742,41 @@ function saveNewTrainer() {
   const rfid = document.getElementById('t-rfid').value.trim();
   const phone = document.getElementById('t-phone').value.trim();
   const spec = document.getElementById('t-spec').value;
-  const rate = parseFloat(document.getElementById('t-rate').value);
+  const rate = document.getElementById('t-rate').value.trim();
+
+  // ── REGEX DEFINITIONS ──
+  const nameRegex = /^[A-Za-z\s\-]+$/;
+  const phoneRegex = /^09\d{9}$/;
+  const rateRegex = /^\d+(\.\d{1,2})?$/; // Only positive numbers or decimals
+
+  // ── VALIDATION PHASE ──
   if (!name || !rfid || !rate) {
-    showToast('Please fill all fields.', 'error'); return;
+    showToast('Please fill all required fields.', 'error'); return;
   }
-  if (!/^\d{11}$/.test(phone)) {
-    showToast('Phone Number must be exactly 11 digits.', 'error'); return;
+  if (!nameRegex.test(name)) {
+    showToast('Trainer name must contain only letters.', 'error'); return;
+  }
+  if (!phoneRegex.test(phone)) {
+    showToast('Phone must be 11 digits starting with 09.', 'error'); return;
+  }
+  if (!rateRegex.test(rate)) {
+    showToast('Rate per Session must be a valid number (e.g., 500 or 500.50).', 'error'); return;
   }
   if (trainers.find(t => t.rfid.toUpperCase() === rfid.toUpperCase())) {
-    showToast('Trainer ID already exists.', 'error'); return;
+    showToast('Trainer ID/RFID already exists.', 'error'); return;
   }
+
+  // ── PROCEED TO SAVE ──
   trainers.push({
     id: rfid.toUpperCase(), rfid: rfid.toUpperCase(),
-    name, phone, specialization: spec, ratePerSession: rate,
+    name, phone, specialization: spec, ratePerSession: parseFloat(rate),
     loggedIn: false, clockInTime: null,
     sessions: [], totalSessions: 0, earningsByMonth: {}
   });
+
   closeModal();
   renderAdminView('trainers');
-  showToast(`${name} onboarded!`);
+  showToast(`${name} onboarded successfully!`);
 }
 
 function openEditTrainer(id) {
@@ -1149,71 +1178,80 @@ function toggleCancelledBookings(show) {
   });
 }
 
-// ── Updated Financials & Billing Tab ──
+// ── Financials & Billing Tab ──
 function renderBillingTab() {
-  let paymentRows = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payments found.</td></tr>';
-  let payoutRows = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payouts found.</td></tr>';
+  // 1. Safety check: Initialize row variables
+  let paymentRowsHtml = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payments recorded in database.</td></tr>';
+  let payoutRowsHtml = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#999;">No payouts recorded in database.</td></tr>';
 
-  // 1. Process Payments from your SQL Script
-  if (window.paymentsData && paymentsData.length > 0) {
-    paymentRows = paymentsData.map(p => `
-      <tr>
-        <td>${p.id}</td>
-        <td><strong>${p.memberName || 'Member #'+p.member_id}</strong></td>
-        <td><span class="status-pill-active">${formatPhpCurrency(p.amount)}</span></td>
-        <td>${p.date ? new Date(p.date).toLocaleDateString() : 'Feb 23, 2026'}</td>
-        <td><span style="font-size: 11px; font-weight: bold; color: var(--s500);">${p.method.toUpperCase()}</span></td>
-        <td style="font-family: monospace;">${p.reference || 'N/A'}</td>
-      </tr>
-    `).join('');
+  try {
+    // 2. Build Payment Rows if data exists
+    if (typeof paymentsData !== 'undefined' && paymentsData.length > 0) {
+      paymentRowsHtml = paymentsData.map(p => `
+        <tr>
+          <td>${p.id || '--'}</td>
+          <td><strong>${p.memberName || 'Unknown'}</strong></td>
+          <td><span class="status-pill-active">${formatPhpCurrency(p.amount)}</span></td>
+          <td>${p.date ? new Date(p.date).toLocaleDateString() : '--'}</td>
+          <td><span style="font-size: 11px; font-weight: bold; color: var(--s500);">${(p.method || 'N/A').toUpperCase()}</span></td>
+          <td style="font-family: monospace;">${p.reference || '--'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // 3. Build Payout Rows if data exists
+    if (typeof payoutsData !== 'undefined' && payoutsData.length > 0) {
+      payoutRowsHtml = payoutsData.map(p => {
+        const statusClass = p.status === 'paid' ? 'status-pill-active' : 'status-pill-banned';
+        const displayStatus = (p.status || 'pending').toUpperCase();
+        return `
+        <tr>
+          <td>${p.id || '--'}</td>
+          <td><strong>${p.trainerName || 'Unknown'}</strong></td>
+          <td><span class="plan-badge-gold" style="color: #b45309; background: #fef3c7;">${formatPhpCurrency(p.amount)}</span></td>
+          <td>${p.date ? new Date(p.date).toLocaleDateString() : '--'}</td>
+          <td><span class="${statusClass}">${displayStatus}</span></td>
+          <td class="action-cell">
+            ${p.status === 'pending'
+              ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="approvePayout(${p.id})">Approve</button>`
+              : `<span style="color: var(--success); font-weight: bold; font-size: 11px;">✔ Paid</span>`}
+          </td>
+        </tr>`;
+      }).join('');
+    }
+  } catch (err) {
+    console.error("Error processing billing data:", err);
   }
 
-  // 2. Process Payouts from your SQL Script
-  if (window.payoutsData && payoutsData.length > 0) {
-    payoutRows = payoutsData.map(p => {
-      const isPaid = p.status === 'paid';
-      return `
-      <tr>
-        <td>${p.id}</td>
-        <td><strong>${p.trainerName || 'Trainer #'+p.trainer_id}</strong></td>
-        <td><span class="plan-badge-gold" style="color: #b45309; background: #fef3c7;">${formatPhpCurrency(p.amount)}</span></td>
-        <td>${p.date || 'Pending'}</td>
-        <td><span class="${isPaid ? 'status-pill-active' : 'status-pill-banned'}">${p.status.toUpperCase()}</span></td>
-        <td class="action-cell">
-          ${!isPaid 
-            ? `<button class="btn-primary" style="padding: 4px 10px; font-size: 11px;" onclick="approvePayout(${p.id})">Approve</button>` 
-            : `<span style="color: var(--success); font-weight: bold; font-size: 11px;">✔ Paid</span>`}
-        </td>
-      </tr>`;
-    }).join('');
-  }
-
+  // 4. Return the Final HTML Structure
   return `
   <div class="tab-header">
     <h2 class="tab-title">Financial Ledger</h2>
     <div class="tab-header-right">
-       <button class="btn-secondary" onclick="exportFinancials()" style="font-size: 12px;">📊 Export CSV</button>
+       <button class="btn-secondary" onclick="console.log('Export CSV clicked')" style="font-size: 12px;">
+          📊 Export CSV
+       </button>
     </div>
   </div>
-  
+
   <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; align-items: start;">
       <div class="table-wrap">
-        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #f8fafc;">
+        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #f8fafc; display: flex; justify-content: space-between;">
             <h3 style="margin: 0; font-size: 14px; color: var(--p600);">Incoming: Revenue</h3>
         </div>
         <table class="data-table">
           <thead><tr><th>ID</th><th>Member</th><th>Amount</th><th>Date</th><th>Method</th><th>Ref</th></tr></thead>
-          <tbody>${paymentRows}</tbody>
+          <tbody>${paymentRowsHtml}</tbody>
         </table>
       </div>
 
       <div class="table-wrap">
-        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #fdf4ff;">
+        <div style="padding: 12px 20px; border-bottom: 1px solid var(--s200); background: #fdf4ff; display: flex; justify-content: space-between;">
             <h3 style="margin: 0; font-size: 14px; color: #c026d3;">Outgoing: Payouts</h3>
         </div>
         <table class="data-table">
           <thead><tr><th>ID</th><th>Trainer</th><th>Amount</th><th>Date</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody>${payoutRows}</tbody>
+          <tbody>${payoutRowsHtml}</tbody>
         </table>
       </div>
   </div>`;
