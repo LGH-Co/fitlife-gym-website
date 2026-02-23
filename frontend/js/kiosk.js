@@ -80,6 +80,14 @@ function handleKioskSessionExpiry() {
   if (input) input.focus();
 }
 
+function closeKioskPortal() {
+  const result = document.getElementById('kiosk-result');
+  const input  = document.getElementById('rfid-input');
+  if (typeof clearSessionTimer === 'function') clearSessionTimer();
+  if (result) result.innerHTML = '';
+  if (input) input.focus();
+}
+
 function toggleMemberStatus(member) {
   const now = new Date();
   if (!member.loggedIn) { member.loggedIn = true;  member.loginTime = now; }
@@ -185,6 +193,7 @@ function renderMemberCard(member) {
   const accessSub   = member.loggedIn && member.loginTime
     ? `Logged in at ${formatTime(member.loginTime)}`
     : 'Not currently logged in';
+  const closeButton = `<button type="button" aria-label="Close portal" onclick="closeKioskPortal()" style="margin-left: 10px; border: 0; background: transparent; font-size: 1.2rem; line-height: 1; cursor: pointer; color: #64748b;">×</button>`;
 
   container.innerHTML = `
     <div class="portal-card">
@@ -196,7 +205,10 @@ function renderMemberCard(member) {
             <div class="portal-sub">Member ID: ${member.id}</div>
           </div>
         </div>
-        <span class="hdr-badge ${statusClass}">${statusLabel}</span>
+        <div style="display: flex; align-items: center;">
+          <span class="hdr-badge ${statusClass}">${statusLabel}</span>
+          ${closeButton}
+        </div>
       </div>
       <div class="portal-body">
         <div class="portal-col">
@@ -277,6 +289,7 @@ function renderTrainerCard(trainer) {
     ? formatTime(trainer.clockInTime) : '--:--:-- --';
   const clockDate   = trainer.loggedIn && trainer.clockInTime
     ? formatDate(trainer.clockInTime) : '';
+  const closeButton = `<button type="button" aria-label="Close portal" onclick="closeKioskPortal()" style="margin-left: 10px; border: 0; background: transparent; font-size: 1.2rem; line-height: 1; cursor: pointer; color: #64748b;">×</button>`;
 
   const sessionsHTML = trainer.sessions.length > 0
     ? trainer.sessions.map((s, i) => `
@@ -300,7 +313,10 @@ function renderTrainerCard(trainer) {
             <div class="portal-sub">Trainer ID: ${trainer.id}</div>
           </div>
         </div>
-        <span class="hdr-badge ${statusClass}">${statusLabel}</span>
+        <div style="display: flex; align-items: center;">
+          <span class="hdr-badge ${statusClass}">${statusLabel}</span>
+          ${closeButton}
+        </div>
       </div>
       <div class="portal-body">
         <div class="portal-col">

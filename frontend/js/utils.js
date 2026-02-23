@@ -51,7 +51,6 @@ function startSessionTimer(onExpire) {
     updateTimerBadge();
     if (sessionSecondsLeft <= 0) {
       clearSessionTimer();
-      alert('Session expired. You will be redirected to the login screen.');
       onExpire();
     }
   }, 1000);
