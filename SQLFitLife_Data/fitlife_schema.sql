@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS admin_account (
     username VARCHAR(50) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role ENUM('super_admin', 'staff') NOT NULL DEFAULT 'staff',
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS members (
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS service_type (
     service_name VARCHAR(50) NOT NULL,
     description VARCHAR(255),
     base_monthly_price DECIMAL(10,2),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS membership_type (
@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS membership_type (
     type_name VARCHAR(20) NOT NULL,
     monthly_fee DECIMAL(10,2),
     perks TEXT,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS membership_plan (
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS membership_plan (
     duration_months INT NOT NULL,
     price DECIMAL(10,2) NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_plan_type
         FOREIGN KEY (membership_type_id) REFERENCES membership_type(membership_type_id)
         ON UPDATE CASCADE
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS classes (
     duration_minutes INT NOT NULL DEFAULT 60,
     capacity INT NOT NULL DEFAULT 20,
     location VARCHAR(80),
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_class_service
         FOREIGN KEY (service_type_id) REFERENCES service_type(service_type_id)
         ON UPDATE CASCADE
