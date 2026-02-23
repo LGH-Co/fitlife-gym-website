@@ -34,17 +34,29 @@ async function loadMembers() {
         const json = await res.json();
         
         if (json.status === 'success') {
-            // PHP is already formatting the data perfectly. 
-            // We just ensure IDs are strings so your Edit/Delete buttons don't break.
-            members = json.data.map(m => ({
-                ...m,
-                id: String(m.id),
-                memberId: String(m.memberId)
+            members = json.data.map(dbM => ({
+                id: dbM.id || dbM.memberId,               // Pure integer, NO 'M' prefix
+                memberId: dbM.id || dbM.memberId,         // Pure integer
+                rfid: String(dbM.rfid || 'N/A'),
+                name: dbM.name || `${dbM.firstName} ${dbM.lastName}`,
+                firstName: dbM.firstName || '',
+                lastName: dbM.lastName || '',
+                phone: dbM.phone || '',
+                email: dbM.email || '',
+                contact: dbM.contact || 'No Contact',
+                plan: dbM.plan || 'Silver',
+                status: dbM.status || 'active',           // Fixes 'undefined'
+                joinDate: dbM.joinDate || new Date().toISOString().split('T')[0], // Fixes '--'
+                expiry: dbM.expiry || 'N/A',
+                height: dbM.height || 170,
+                weight: dbM.weight || 70,
+                bmi: dbM.bmi || 0,
+                targetWeight: dbM.targetWeight || 65,
+                loggedIn: dbM.loggedIn || false,
+                loginTime: dbM.loginTime || null
             }));
-            
             console.log("🟢 Members Loaded:", members.length);
             
-            // Auto-refresh the table instantly if you are on the Members tab
             const activeTab = document.querySelector('.tab-btn.active');
             if (activeTab && activeTab.dataset.tab === 'members') {
                 if (typeof renderAdminView === 'function') renderAdminView('members');

@@ -364,9 +364,9 @@ function saveNewMember() {
   //   showToast('RFID already exists in the system.', 'error'); return;
   // }
   // REPLACE IT WITH THIS BULLETPROOF VERSION:
-  if (members.find(m => String(m.rfid).toUpperCase() === String(rfid).toUpperCase())) {
-      showToast('RFID already exists in the system.', 'error'); return;
-  }
+if (members.find(m => String(m.rfid).toUpperCase() === String(rfid).toUpperCase())) {
+    showToast('RFID already exists in the system.', 'error'); return;
+}
   // ── PROCEED TO SAVE ──
   const d = new Date();
   d.setMonth(d.getMonth() + 1);
