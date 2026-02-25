@@ -205,6 +205,11 @@ function renderMembersTab() {
             <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
           </svg>
         </button>
+        <button class="tbl-btn-edit" onclick="openHealthHistory('${m.id}')" title="Health History" style="background: #fef3c7; color: #d97706; border-color: #fde68a;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+        </button>
         <button class="tbl-btn-del" onclick="deleteMember('${m.id}')" title="Delete">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/>
@@ -225,10 +230,10 @@ function renderMembersTab() {
       <td>${m.expiry || m.end_date || '--'}</td>
       <td>
         <div class="metrics-table-grid">
-          <span class="mtg-item"><span class="mtg-label">Height</span> ${m.height ?? '--'} cm</span>
-          <span class="mtg-item"><span class="mtg-label">Weight</span> ${m.weight} kg</span>
-          <span class="mtg-item"><span class="mtg-label">BMI</span> ${m.bmi}</span>
-          <span class="mtg-item"><span class="mtg-label">Target</span> ${m.targetWeight ?? '--'} kg</span>
+          <span class="mtg-item"><span class="mtg-label">Height</span> ${m.height != null ? m.height + ' cm' : '--'}</span>
+          <span class="mtg-item"><span class="mtg-label">Weight</span> ${m.weight != null ? m.weight + ' kg' : '--'}</span>
+          <span class="mtg-item"><span class="mtg-label">BMI</span> ${m.bmi != null ? m.bmi : '--'}</span>
+          <span class="mtg-item"><span class="mtg-label">Target</span> ${m.targetWeight != null ? m.targetWeight + ' kg' : '--'}</span>
         </div>
         <div class="metrics-as-of">as of ${m.metricsUpdatedAt ?? '--'}</div>
       </td>
@@ -474,7 +479,17 @@ function openEditMember(id) {
       </div>
       <div class="form-group">
         <label>Weight (kg)</label>
-        <input id="em-weight" class="form-input" type="number" value="${m.weight}"/>
+        <input id="em-weight" class="form-input" type="number" value="${m.weight ?? ''}"/>
+      </div>
+    </div>
+    <div class="form-row-2">
+      <div class="form-group">
+        <label>Target Weight (kg)</label>
+        <input id="em-target-weight" class="form-input" type="number" value="${m.targetWeight ?? ''}"/>
+      </div>
+      <div class="form-group">
+        <label>BMI</label>
+        <input class="form-input" type="text" value="${m.bmi ?? '--'}" disabled style="background:#f1f5f9; color:#64748b;"/>
       </div>
     </div>
     <div class="modal-actions" style="justify-content: space-between;">
@@ -521,6 +536,24 @@ function saveEditMember(id) {
   .then(res => res.json())
   .then(async result => {
     if (result.status === 'success') {
+      // Also save body metrics if height or weight was provided
+      if (height || weight) {
+        try {
+          const targetWeight = parseFloat(document.getElementById('em-target-weight')?.value) || m.targetWeight || null;
+          await fetch('http://localhost/fitlife-gym/backend/api/save_body_metrics.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              member_id: numId || id,
+              weight: weight || null,
+              height: height || null,
+              target_weight: targetWeight
+            })
+          });
+        } catch (metricsErr) {
+          console.error("Body metrics save error:", metricsErr);
+        }
+      }
       showToast('Member updated successfully!');
       await loadMembers();
       renderAdminView('members');
@@ -683,6 +716,151 @@ async function submitClassBooking(memberId) {
       closeModal();
     } else {
       showToast(result.message, 'error');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Server connection failed.', 'error');
+  }
+}
+
+// ── Health History (MySQL health_history + MongoDB health_logs) ──
+async function openHealthHistory(memberId) {
+  const numId = typeof memberId === 'string' ? parseInt(memberId, 10) : memberId;
+  const m = members.find(x => x.id === numId || x.id === memberId);
+  const memberName = m ? m.name : `Member #${memberId}`;
+
+  showModal(`
+    <h3 class="modal-title">Health History: ${memberName}</h3>
+    <div style="text-align:center; padding: 30px; color: #94a3b8;">Loading health records...</div>
+  `);
+
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/get_health_history.php?member_id=' + numId);
+    const result = await res.json();
+
+    let mysqlRows = '';
+    let mongoRows = '';
+
+    // Build MySQL rows
+    if (result.status === 'success' && result.mysql && result.mysql.length > 0) {
+      mysqlRows = result.mysql.map(r => {
+        const d = r.log_date ? new Date(r.log_date) : null;
+        const dateStr = d && !isNaN(d) ? d.toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : r.log_date;
+        const typeBadge = r.type === 'Injury'
+          ? '<span style="color:#dc2626;font-weight:600;">Injury</span>'
+          : '<span style="color:#059669;font-weight:600;">' + (r.type || '--') + '</span>';
+        return `<tr><td>${dateStr}</td><td>${typeBadge}</td><td>${r.notes || '--'}</td><td style="color:#6366f1;font-size:11px;">MySQL</td></tr>`;
+      }).join('');
+    }
+
+    // Build MongoDB rows
+    if (result.status === 'success' && result.mongo && result.mongo.length > 0) {
+      mongoRows = result.mongo.map(r => {
+        const d = r.log_date && r.log_date !== '--' ? new Date(r.log_date) : null;
+        const dateStr = d && !isNaN(d) ? d.toLocaleDateString('en-US', {year:'numeric',month:'short',day:'numeric'}) : (r.log_date || '--');
+        const typeBadge = r.type === 'Injury'
+          ? '<span style="color:#dc2626;font-weight:600;">Injury</span>'
+          : '<span style="color:#059669;font-weight:600;">' + (r.type || '--') + '</span>';
+        const meal = r.pre_workout_meal && r.pre_workout_meal !== '--' ? r.pre_workout_meal : '';
+        const fatigue = r.fatigue_level != null ? ' | Fatigue: ' + r.fatigue_level + '/10' : '';
+        const extra = meal || fatigue ? '<br><span style="font-size:11px;color:#64748b;">' + meal + fatigue + '</span>' : '';
+        return `<tr><td>${dateStr}</td><td>${typeBadge}</td><td>${(r.notes || '--')}${extra}</td><td style="color:#f59e0b;font-size:11px;">MongoDB</td></tr>`;
+      }).join('');
+    }
+
+    const allRows = mysqlRows + mongoRows || '<tr><td colspan="4" style="text-align:center;padding:20px;color:#999;">No health history records found.</td></tr>';
+
+    showModal(`
+      <h3 class="modal-title">Health History: ${memberName}</h3>
+      <div class="table-wrap" style="max-height: 280px; overflow-y: auto; margin-bottom: 16px;">
+        <table class="data-table">
+          <thead><tr><th>Date</th><th>Type</th><th>Notes</th><th>Source</th></tr></thead>
+          <tbody>${allRows}</tbody>
+        </table>
+      </div>
+      <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
+        <h4 style="margin: 0 0 12px; font-size: 14px; color: var(--s700);">Add New Health Record</h4>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Date</label>
+            <input id="hh-date" class="form-input" type="date" value="${new Date().toISOString().split('T')[0]}"/>
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="hh-type" class="form-input">
+              <option value="Routine">Routine</option>
+              <option value="Injury">Injury</option>
+              <option value="Recovery">Recovery</option>
+              <option value="Checkup">Checkup</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row-2">
+          <div class="form-group">
+            <label>Pre-Workout Meal</label>
+            <select id="hh-meal" class="form-input">
+              <option value="">-- Select --</option>
+              <option value="Full Meal">Full Meal</option>
+              <option value="Light Snack">Light Snack</option>
+              <option value="Fasted">Fasted</option>
+              <option value="Protein Shake">Protein Shake</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Fatigue Level (1-10)</label>
+            <input id="hh-fatigue" class="form-input" type="number" min="1" max="10" placeholder="e.g. 3"/>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea id="hh-notes" class="form-input" rows="2" placeholder="Describe condition, symptoms, etc."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="closeModal()">Close</button>
+        <button class="btn-primary" onclick="saveHealthHistory('${memberId}')">Save Record</button>
+      </div>
+    `);
+  } catch (error) {
+    console.error(error);
+    showToast('Failed to load health history.', 'error');
+  }
+}
+
+async function saveHealthHistory(memberId) {
+  const logDate  = document.getElementById('hh-date').value;
+  const type     = document.getElementById('hh-type').value;
+  const meal     = document.getElementById('hh-meal').value;
+  const fatigue  = document.getElementById('hh-fatigue').value;
+  const notes    = document.getElementById('hh-notes').value.trim();
+
+  if (!type) {
+    showToast('Please select a health record type.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/save_health_history.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        member_id: memberId,
+        log_date: logDate,
+        type: type,
+        pre_workout_meal: meal,
+        fatigue_level: fatigue ? parseInt(fatigue) : null,
+        notes: notes
+      })
+    });
+    const result = await res.json();
+
+    if (result.status === 'success') {
+      showToast(result.message, 'success');
+      // Reload the health history modal with fresh data
+      openHealthHistory(memberId);
+    } else {
+      showToast(result.message || 'Failed to save health record.', 'error');
     }
   } catch (e) {
     console.error(e);
@@ -1562,6 +1740,30 @@ function renderBillingTab() {
         </table>
       </div>
   </div>`;
+}
+
+// ── Approve Payout (Billing Tab) ──
+async function approvePayout(payoutId) {
+  if (!confirm('Approve this payout? This will mark it as paid.')) return;
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/approve_payout.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ payout_id: payoutId })
+    });
+    const result = await res.json();
+    if (result.status === 'success') {
+      showToast('Payout approved successfully!', 'success');
+      await loadPayouts();
+      await loadAuditLogs();
+      renderAdminView('billing');
+    } else {
+      showToast(result.message || 'Approval failed.', 'error');
+    }
+  } catch (e) {
+    console.error(e);
+    showToast('Server connection failed.', 'error');
+  }
 }
 
 // ── Cybersecurity System Logs Tab ──

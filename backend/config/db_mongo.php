@@ -1,5 +1,6 @@
 <?php
 // backend/config/db_mongo.php
+date_default_timezone_set('Asia/Manila');
 
 // 1. Load the Composer autoloader
 require_once __DIR__ . '/../vendor/autoload.php'; 

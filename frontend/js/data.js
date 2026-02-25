@@ -5,12 +5,28 @@ const WORKOUT_PROGRAMS = [
   'Mobility Fix', 'Boxing', 'Swim Endurance'
 ];
 
-// We will eventually replace these with your MongoDB Cloud data!
-let retentionData = [
-  { month: 'Jan', rate: 92 }, { month: 'Feb', rate: 88 },
-  { month: 'Mar', rate: 91 }, { month: 'Apr', rate: 90 },
-  { month: 'May', rate: 93 }, { month: 'Jun', rate: 94 }
-];
+// We will fetch retention data from the database!
+let retentionData = [];
+
+// Load retention data from MySQL
+async function loadRetentionData() {
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/get_retention.php');
+    const json = await res.json();
+    if (json.status === 'success' && json.data.length > 0) {
+      retentionData = json.data.map(d => ({ month: d.month, rate: d.rate }));
+      console.log("🟢 Retention Data Loaded:", retentionData.length, "months");
+    } else {
+      // Fallback: show last 6 months at 0% if no data
+      const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      retentionData = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(); d.setMonth(d.getMonth() - i);
+        retentionData.push({ month: months[d.getMonth()], rate: 0 });
+      }
+    }
+  } catch (e) { console.error("🔴 Failed to load retention data:", e); }
+}
 
 let peakHoursData = [
   { hour: '6 AM',  count: 28 }, { hour: '8 AM',  count: 45 },
@@ -47,14 +63,16 @@ async function loadMembers() {
                 plan: dbM.plan || 'Silver',
                 status: dbM.status || 'active',
                 membership_status: dbM.status || 'active',
-                joinDate: dbM.joinDate || new Date().toISOString().split('T')[0], // Fixes '--'
+                joinDate: dbM.joinDate || new Date().toISOString().split('T')[0],
                 expiry: dbM.expiry || 'N/A',
-                height: dbM.height || 170,
-                weight: dbM.weight || 70,
-                bmi: dbM.bmi || 0,
-                targetWeight: dbM.targetWeight || 65,
+                height: dbM.height,
+                weight: dbM.weight,
+                bmi: dbM.bmi,
+                targetWeight: dbM.targetWeight,
+                metricsUpdatedAt: dbM.metricsUpdatedAt ? new Date(dbM.metricsUpdatedAt).toLocaleDateString() : null,
                 loggedIn: dbM.loggedIn || false,
-                loginTime: dbM.loginTime || null
+                loginTime: dbM.loginTime || null,
+                sessions: []
             }));
             console.log("🟢 Members Loaded:", members.length);
             
@@ -85,9 +103,13 @@ async function loadTrainers() {
                 specialization: dbT.specialization,
                 isActive: dbT.is_active == 1,
                 status: dbT.is_active == 1 ? 'active' : 'archived',
-                ratePerSession: 60,
+                ratePerSession: dbT.rate_per_session || 60,
                 loggedIn: false, clockInTime: null,
-                sessions: [], totalSessions: 0, earningsByMonth: {}
+                sessions: [], 
+                totalSessions: dbT.total_sessions || 0,
+                totalEarnings: dbT.total_earnings || 0,
+                sessionsByMonth: dbT.sessions_by_month || {},
+                earningsByMonth: dbT.earnings_by_month || {}
             }));
             console.log("🟢 Trainers Loaded:", trainers.length);
         }
@@ -213,14 +235,13 @@ async function loadAuditLogs() {
 
 // Utility functions for UI
 function getTrainerEarnings(trainer, filterMonth) {
-  if (filterMonth === 'all') return trainer.totalSessions * trainer.ratePerSession;
+  if (filterMonth === 'all') return trainer.totalEarnings || (trainer.totalSessions * trainer.ratePerSession);
   return trainer.earningsByMonth[filterMonth] || 0;
 }
 
 function getFilteredSessions(trainer, filterMonth) {
   if (filterMonth === 'all') return trainer.totalSessions;
-  const [year, month] = filterMonth.split('-').map(Number);
-  return trainer.sessions.filter(s => s.month === month && s.year === year).length;
+  return trainer.sessionsByMonth[filterMonth] || 0;
 }
 
 function formatPhpCurrency(value) {
@@ -237,7 +258,8 @@ Promise.all([
     loadAttendanceData(),
     loadPayments(), 
     loadPayouts(),
-    loadAuditLogs()
+    loadAuditLogs(),
+    loadRetentionData()
 ]).then(() => {
     console.log("✅ All Live Database Systems Connected!");
 });

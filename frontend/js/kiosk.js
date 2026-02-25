@@ -7,7 +7,7 @@ function initKiosk() {
 }
 
 // frontend/js/kiosk.js 
-function handleRFIDScan() {
+async function handleRFIDScan() {
   const input = document.getElementById('rfid-input');
   const rfid  = input.value.trim().toUpperCase();
   if (!rfid) return;
@@ -43,6 +43,9 @@ function handleRFIDScan() {
       return; // Stop execution instantly
     }
 
+    // Fetch today's sessions from DB before toggling
+    member.sessions = await fetchTodaySessions(member.id, null);
+
     // If they pass the checks, log them in normally!
     toggleMemberStatus(member);
     renderMemberCard(member);
@@ -56,6 +59,9 @@ function handleRFIDScan() {
     String(t.rfid).toUpperCase() === rfid || String(t.id).toUpperCase() === rfid);
     
   if (trainer) {
+    // Fetch today's sessions from DB before toggling
+    trainer.sessions = await fetchTodaySessions(null, trainer.trainerId);
+
     toggleTrainerStatus(trainer);
     renderTrainerCard(trainer);
     startSessionTimer(handleKioskSessionExpiry);
@@ -90,14 +96,68 @@ function closeKioskPortal() {
 
 function toggleMemberStatus(member) {
   const now = new Date();
-  if (!member.loggedIn) { member.loggedIn = true;  member.loginTime = now; }
-  else                  { member.loggedIn = false; member.loginTime = null; }
+  if (!member.loggedIn) { 
+    member.loggedIn = true;  
+    member.loginTime = now;
+    // Log Entry to MySQL + MongoDB
+    logKioskAttendance(member.rfid, 'Member', 'Entry', member.id, null, member.name);
+  } else { 
+    member.loggedIn = false; 
+    member.loginTime = null;
+    // Log Exit to MySQL + MongoDB
+    logKioskAttendance(member.rfid, 'Member', 'Exit', member.id, null, member.name);
+  }
 }
 
 function toggleTrainerStatus(trainer) {
   const now = new Date();
-  if (!trainer.loggedIn) { trainer.loggedIn = true;  trainer.clockInTime = now; }
-  else                   { trainer.loggedIn = false; trainer.clockInTime = null; }
+  if (!trainer.loggedIn) { 
+    trainer.loggedIn = true;  
+    trainer.clockInTime = now;
+    // Log Entry to MySQL + MongoDB
+    logKioskAttendance(trainer.rfid, 'Trainer', 'Entry', null, trainer.trainerId, trainer.name);
+  } else { 
+    trainer.loggedIn = false; 
+    trainer.clockInTime = null;
+    // Log Exit to MySQL + MongoDB
+    logKioskAttendance(trainer.rfid, 'Trainer', 'Exit', null, trainer.trainerId, trainer.name);
+  }
+}
+
+// Persist attendance to MySQL + MongoDB via kiosk_checkin.php
+function logKioskAttendance(rfid, role, action, memberId, trainerId, name) {
+  fetch('http://localhost/fitlife-gym/backend/api/kiosk_checkin.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      rfid: rfid,
+      role: role,
+      action: action,
+      member_id: memberId,
+      trainer_id: trainerId,
+      name: name
+    })
+  })
+  .then(r => r.json())
+  .then(result => {
+    if (result.status === 'success') {
+      console.log(`🟢 ${role} ${action} logged for ${name}`);
+    } else {
+      console.error(`🔴 Attendance log failed:`, result.message);
+    }
+  })
+  .catch(e => console.error('🔴 Kiosk attendance API error:', e));
+}
+
+// Fetch today's sessions for a member or trainer from MySQL
+async function fetchTodaySessions(memberId, trainerId) {
+  try {
+    const params = memberId ? `member_id=${memberId}` : `trainer_id=${trainerId}`;
+    const res = await fetch(`http://localhost/fitlife-gym/backend/api/get_today_sessions.php?${params}`);
+    const json = await res.json();
+    if (json.status === 'success') return json.data;
+  } catch (e) { console.error('🔴 Failed to fetch sessions:', e); }
+  return [];
 }
 
 // ── SVG Icons ──
@@ -233,19 +293,19 @@ function renderMemberCard(member) {
             <div class="metrics-grid">
               <div class="metric-item">
                 <div class="metric-label">Height</div>
-                <div class="metric-value pbox-val-purple">${member.height ?? '--'} cm</div>
+                <div class="metric-value pbox-val-purple">${member.height != null ? member.height + ' cm' : '--'}</div>
               </div>
               <div class="metric-item">
                 <div class="metric-label">Weight</div>
-                <div class="metric-value pbox-val-purple">${member.weight} kg</div>
+                <div class="metric-value pbox-val-purple">${member.weight != null ? member.weight + ' kg' : '--'}</div>
               </div>
               <div class="metric-item">
                 <div class="metric-label">BMI</div>
-                <div class="metric-value pbox-val-purple">${member.bmi}</div>
+                <div class="metric-value pbox-val-purple">${member.bmi != null ? member.bmi : '--'}</div>
               </div>
               <div class="metric-item">
                 <div class="metric-label">Target Weight</div>
-                <div class="metric-value pbox-val-purple">${member.targetWeight ?? '--'} kg</div>
+                <div class="metric-value pbox-val-purple">${member.targetWeight != null ? member.targetWeight + ' kg' : '--'}</div>
               </div>
             </div>
             <div class="metrics-as-of">as of ${member.metricsUpdatedAt ?? '--'}</div>
@@ -342,7 +402,7 @@ function renderTrainerCard(trainer) {
           <!-- Rate per Session -->
           <div class="pbox pbox-blue">
             <div class="pbox-label">Rate per Session</div>
-            <div class="pbox-value pbox-val-blue">$${trainer.ratePerSession}</div>
+            <div class="pbox-value pbox-val-blue">₱${trainer.ratePerSession}</div>
           </div>
 
         </div>

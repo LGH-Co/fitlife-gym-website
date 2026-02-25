@@ -7,9 +7,10 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once '../config/db_mysql.php';
 
 try {
-    // JOIN membership tables to get the actual plan for each member
+    // JOIN membership tables + latest body_metrics to get real data per member
     $query = "SELECT m.member_id, m.rfid, m.first_name, m.last_name, m.phone, m.email, m.join_date, m.status, m.expiry_date,
-                     mt.type_name AS plan_name
+                     mt.type_name AS plan_name,
+                     bm.height, bm.weight, bm.bmi, bm.target_weight, bm.recorded_at AS metrics_updated_at
               FROM members m
               LEFT JOIN membership ms ON ms.member_id = m.member_id
                 AND ms.membership_id = (
@@ -17,6 +18,10 @@ try {
                 )
               LEFT JOIN membership_plan mp ON ms.membership_plan_id = mp.membership_plan_id
               LEFT JOIN membership_type mt ON mp.membership_type_id = mt.membership_type_id
+              LEFT JOIN body_metrics bm ON bm.member_id = m.member_id
+                AND bm.body_metrics_id = (
+                    SELECT MAX(bm2.body_metrics_id) FROM body_metrics bm2 WHERE bm2.member_id = m.member_id
+                )
               ORDER BY m.member_id ASC";
     
     $stmt = $pdo->prepare($query);
@@ -41,10 +46,11 @@ try {
             "joinDate"         => $row['join_date'] ?? date('Y-m-d'),
             "expiry"           => $row['expiry_date'] ?? '2026-03-01',
             "plan"             => $row['plan_name'] ?? 'Silver',
-            "height"           => 170,
-            "weight"           => 70,
-            "bmi"              => 24.2,
-            "targetWeight"     => 65,
+            "height"           => $row['height'] !== null ? (float)$row['height'] : null,
+            "weight"           => $row['weight'] !== null ? (float)$row['weight'] : null,
+            "bmi"              => $row['bmi'] !== null ? (float)$row['bmi'] : null,
+            "targetWeight"     => $row['target_weight'] !== null ? (float)$row['target_weight'] : null,
+            "metricsUpdatedAt" => $row['metrics_updated_at'] ?? null,
             "loggedIn"         => false,
             "loginTime"        => null,
         ];

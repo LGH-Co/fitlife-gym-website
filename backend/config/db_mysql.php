@@ -1,5 +1,7 @@
 <?php
 // backend/config/db_mysql.php
+date_default_timezone_set('Asia/Manila');
+
 $host = '127.0.0.1';
 $port = '3307';         // use port 3307
 $db   = 'fitlife_gym';

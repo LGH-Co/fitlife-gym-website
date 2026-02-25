@@ -9,13 +9,13 @@ try {
     $query = "
         SELECT
             tp.payout_id AS id,
-            t.name AS trainerName,
+            CONCAT(t.first_name, ' ', t.last_name) AS trainerName,
             tp.amount,
-            tp.payout_date AS date,
+            tp.payout_datetime AS date,
             tp.status
         FROM trainer_payouts tp
         JOIN trainers t ON tp.trainer_id = t.trainer_id
-        ORDER BY tp.payout_date DESC, tp.status ASC
+        ORDER BY tp.payout_datetime DESC, tp.status ASC
     ";
 
     $stmt = $pdo->prepare($query);
