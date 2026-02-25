@@ -7,10 +7,17 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once '../config/db_mysql.php';
 
 try {
-    // FIX: SELECT * grabs all columns automatically, preventing the 1054 error!
-    $query = "SELECT m.member_id, m.rfid, m.first_name, m.last_name, m.phone, m.email, m.join_date, m.status, m.expiry_date 
-          FROM members m 
-          ORDER BY m.member_id ASC";
+    // JOIN membership tables to get the actual plan for each member
+    $query = "SELECT m.member_id, m.rfid, m.first_name, m.last_name, m.phone, m.email, m.join_date, m.status, m.expiry_date,
+                     mt.type_name AS plan_name
+              FROM members m
+              LEFT JOIN membership ms ON ms.member_id = m.member_id
+                AND ms.membership_id = (
+                    SELECT MAX(ms2.membership_id) FROM membership ms2 WHERE ms2.member_id = m.member_id
+                )
+              LEFT JOIN membership_plan mp ON ms.membership_plan_id = mp.membership_plan_id
+              LEFT JOIN membership_type mt ON mp.membership_type_id = mt.membership_type_id
+              ORDER BY m.member_id ASC";
     
     $stmt = $pdo->prepare($query);
     $stmt->execute();
@@ -30,10 +37,10 @@ try {
             "phone"            => $row['phone'] ?? '',
             "email"            => $row['email'] ?? '',
             "contact"          => ($row['email'] ?? '') . ' | ' . ($row['phone'] ?? ''),
-            "status" => $row['status'] ?? 'active',
+            "status"           => $row['status'] ?? 'active',
             "joinDate"         => $row['join_date'] ?? date('Y-m-d'),
             "expiry"           => $row['expiry_date'] ?? '2026-03-01',
-            "plan"             => "Silver", // Safe fallback
+            "plan"             => $row['plan_name'] ?? 'Silver',
             "height"           => 170,
             "weight"           => 70,
             "bmi"              => 24.2,

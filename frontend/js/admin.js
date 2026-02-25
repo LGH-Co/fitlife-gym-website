@@ -197,6 +197,14 @@ function renderMembersTab() {
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
           </svg>
         </button>
+        <button class="tbl-btn-edit" onclick="renewMembership('${m.id}')" title="Renew Membership" style="background: var(--g100); color: var(--g600); border-color: var(--g200);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 2v6h-6"/>
+            <path d="M3 12a9 9 0 0 1 15-6.7L21 8"/>
+            <path d="M3 22v-6h6"/>
+            <path d="M21 12a9 9 0 0 1-15 6.7L3 16"/>
+          </svg>
+        </button>
         <button class="tbl-btn-del" onclick="deleteMember('${m.id}')" title="Delete">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/>
@@ -395,7 +403,8 @@ if (members.find(m => String(m.rfid).toUpperCase() === String(rfid).toUpperCase(
 
 // WITH GOLD PLAN LOCK
 function openEditMember(id) {
-  const m = members.find(x => x.id === id);
+  const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+  const m = members.find(x => x.id === numId || x.id === id);
   if (!m) return;
 
   // Check if the user is Gold
@@ -468,7 +477,8 @@ function openEditMember(id) {
 }
 
 function saveEditMember(id) {
-  const m = members.find(x => x.id === id);
+  const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+  const m = members.find(x => x.id === numId || x.id === id);
   if (!m) return;
 
   const updatedPhone = document.getElementById('em-phone').value.trim();
@@ -476,21 +486,70 @@ function saveEditMember(id) {
     showToast('Phone Number must be exactly 11 digits.', 'error'); return;
   }
   
-  m.firstName = document.getElementById('em-fname').value.trim();
-  m.lastName  = document.getElementById('em-lname').value.trim();
-  m.name      = `${m.firstName} ${m.lastName}`;
-  m.phone     = updatedPhone;
-  m.email     = document.getElementById('em-email').value.trim();
-  m.contact   = `${m.email} | ${m.phone}`;
-  m.plan      = document.getElementById('em-plan').value;
-  m.status    = document.getElementById('em-status').value;
-  m.height    = parseFloat(document.getElementById('em-height').value) || m.height;
-  m.weight    = parseFloat(document.getElementById('em-weight').value) || m.weight;
-  m.metricsUpdatedAt = new Date().toLocaleDateString();
-  
+  const firstName = document.getElementById('em-fname').value.trim();
+  const lastName  = document.getElementById('em-lname').value.trim();
+  const email     = document.getElementById('em-email').value.trim();
+  const plan      = document.getElementById('em-plan').value;
+  const status    = document.getElementById('em-status').value;
+  const height    = parseFloat(document.getElementById('em-height').value) || m.height;
+  const weight    = parseFloat(document.getElementById('em-weight').value) || m.weight;
+
+  // Persist to MySQL
+  fetch('http://localhost/fitlife-gym/backend/api/update_member.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      member_id: numId || id,
+      first_name: firstName,
+      last_name: lastName,
+      phone: updatedPhone,
+      email: email,
+      plan: plan,
+      status: status
+    })
+  })
+  .then(res => res.json())
+  .then(async result => {
+    if (result.status === 'success') {
+      showToast('Member updated successfully!');
+      await loadMembers();
+      renderAdminView('members');
+    } else {
+      showToast(result.message || 'Update failed.', 'error');
+    }
+  })
+  .catch(e => {
+    console.error(e);
+    showToast('Server connection failed.', 'error');
+  });
+
   closeModal();
-  renderAdminView('members');
-  showToast('Member updated successfully!');
+}
+
+// RENEW MEMBERSHIP
+async function renewMembership(id) {
+  if (!confirm('Renew this membership? The join date will be set to today and expiry to 1 month from now.')) return;
+  
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/renew_membership.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: id })
+    });
+    const result = await res.json();
+    
+    if (result.status === 'success') {
+      showToast(result.message, 'success');
+      // Reload the live data from MySQL and instantly redraw the table
+      await loadMembers();
+      renderAdminView('members');
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (e) { 
+    console.error(e); 
+    showToast('Server connection failed.', 'error'); 
+  }
 }
 
 // SECURE SOFT DELETE FOR MEMBERS
@@ -521,7 +580,8 @@ async function deleteMember(id) {
 
 // ── Member Booking Integration ──
 function openBookClassModal(memberId) {
-  const m = members.find(x => x.id === memberId);
+  const numId = typeof memberId === 'string' ? parseInt(memberId, 10) : memberId;
+  const m = members.find(x => x.id === numId || x.id === memberId);
   if (!m) return;
 
   if (!classesData || classesData.length === 0) {
@@ -845,13 +905,36 @@ function saveEditTrainer(id) {
   if (!/^\d{11}$/.test(updatedPhone)) {
     showToast('Phone Number must be exactly 11 digits.', 'error'); return;
   }
-  t.name           = document.getElementById('et-name').value.trim();
-  t.phone          = updatedPhone;
-  t.specialization = document.getElementById('et-spec').value;
-  t.ratePerSession = parseFloat(document.getElementById('et-rate').value) || t.ratePerSession;
+  const name           = document.getElementById('et-name').value.trim();
+  const specialization = document.getElementById('et-spec').value;
+
+  // Persist to MySQL
+  fetch('http://localhost/fitlife-gym/backend/api/update_trainer.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      trainer_id: id,
+      name: name,
+      phone: updatedPhone,
+      specialization: specialization
+    })
+  })
+  .then(res => res.json())
+  .then(async result => {
+    if (result.status === 'success') {
+      showToast('Trainer updated successfully!');
+      await loadTrainers();
+      renderAdminView('trainers');
+    } else {
+      showToast(result.message || 'Update failed.', 'error');
+    }
+  })
+  .catch(e => {
+    console.error(e);
+    showToast('Server connection failed.', 'error');
+  });
+
   closeModal();
-  renderAdminView('trainers');
-  showToast('Trainer updated!');
 }
 
 // SECURE SOFT DELETE FOR TRAINERS
@@ -923,7 +1006,7 @@ function renderClassesTab() {
             <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
           </svg>
         </button>
-        <button class="tbl-btn-del" onclick="alert('Delete feature coming soon!')" title="Delete">
+        <button class="tbl-btn-del" onclick="deleteClass(${c.id})" title="Archive Class">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="3 6 5 6 21 6"/>
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
@@ -1061,6 +1144,31 @@ async function saveNewClass() {
   } catch (error) {
     console.error(error);
     showToast('Server connection failed.', 'error');
+  }
+}
+
+// SECURE SOFT DELETE FOR CLASSES
+async function deleteClass(classId) {
+  if (!confirm('Archive this class? It will be hidden from the schedule but booking records will remain intact.')) return;
+  
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/delete_class.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ class_id: classId })
+    });
+    const result = await res.json();
+    
+    if (result.status === 'success') {
+      showToast(result.message, 'info');
+      await loadClasses();
+      renderAdminView('classes');
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (e) { 
+    console.error(e); 
+    showToast('Server connection failed.', 'error'); 
   }
 }
 
