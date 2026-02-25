@@ -6,8 +6,7 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once '../config/db_mysql.php';
 
 try {
-    // We added a subquery to count active bookings (ignoring cancelled ones)
-    // Soft delete: only show active (non-archived) classes
+    // Return all classes (including archived) so the frontend can filter
     $query = "
         SELECT 
             c.class_id, c.class_name, c.starts_at, c.duration_minutes, c.capacity, c.location, c.status,
@@ -15,7 +14,6 @@ try {
             (SELECT COUNT(*) FROM bookings b WHERE b.class_id = c.class_id AND b.status != 'cancelled') AS booked_count
         FROM classes c
         LEFT JOIN trainers t ON c.trainer_id = t.trainer_id
-        WHERE c.status != 'archived'
         ORDER BY c.starts_at ASC
     ";
     

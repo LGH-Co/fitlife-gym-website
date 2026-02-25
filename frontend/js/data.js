@@ -45,7 +45,8 @@ async function loadMembers() {
                 email: dbM.email || '',
                 contact: dbM.contact || 'No Contact',
                 plan: dbM.plan || 'Silver',
-                status: dbM.status || 'active',           // Fixes 'undefined'
+                status: dbM.status || 'active',
+                membership_status: dbM.status || 'active',
                 joinDate: dbM.joinDate || new Date().toISOString().split('T')[0], // Fixes '--'
                 expiry: dbM.expiry || 'N/A',
                 height: dbM.height || 170,
@@ -82,6 +83,8 @@ async function loadTrainers() {
                 name: `${dbT.first_name} ${dbT.last_name}`,
                 phone: dbT.phone || '',
                 specialization: dbT.specialization,
+                isActive: dbT.is_active == 1,
+                status: dbT.is_active == 1 ? 'active' : 'archived',
                 ratePerSession: 60,
                 loggedIn: false, clockInTime: null,
                 sessions: [], totalSessions: 0, earningsByMonth: {}
@@ -109,7 +112,8 @@ async function loadClasses() {
                 duration: dbC.duration_minutes,
                 capacity: dbC.capacity,
                 bookedCount: dbC.booked_count,
-                location: dbC.location
+                location: dbC.location,
+                status: dbC.status || 'active'
             }));
             console.log("🟢 Classes Loaded:", classesData.length);
         }

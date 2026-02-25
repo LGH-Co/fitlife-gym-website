@@ -376,29 +376,39 @@ if (members.find(m => String(m.rfid).toUpperCase() === String(rfid).toUpperCase(
     showToast('RFID already exists in the system.', 'error'); return;
 }
   // ── PROCEED TO SAVE ──
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
-  const expiry = `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+  const startDate = document.getElementById('m-start').value || new Date().toISOString().split('T')[0];
 
-  members.push({
-    id: 'M' + Math.floor(Math.random() * 1000).toString().padStart(3, '0'),
-    rfid: rfid.toUpperCase(), 
-    firstName: fname, lastName: lname, 
-    name: `${fname} ${lname}`,
-    phone: phone, email: email,
-    contact: `${email} | ${phone}`, 
-    plan: plan, membership_status: 'active', expiry: expiry,
-    height: parseFloat(document.getElementById('m-height').value) || 0, 
-    weight: parseFloat(document.getElementById('m-weight').value) || 0, 
-    bmi: 0, 
-    targetWeight: parseFloat(document.getElementById('m-target').value) || 0, 
-    metricsUpdatedAt: new Date().toLocaleDateString(),
-    loggedIn: false, loginTime: null, sessions: []
+  // Call backend API — MySQL handles AUTO_INCREMENT for member_id
+  fetch('http://localhost/fitlife-gym/backend/api/add_member.php', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      rfid: rfid.toUpperCase(),
+      first_name: fname,
+      last_name: lname,
+      phone: phone,
+      email: email,
+      plan: plan,
+      join_date: startDate,
+      membership_status: 'active'
+    })
+  })
+  .then(res => res.json())
+  .then(async result => {
+    if (result.status === 'success') {
+      showToast(result.message, 'success');
+      await loadMembers();
+      renderAdminView('members');
+    } else {
+      showToast(result.message || 'Registration failed.', 'error');
+    }
+  })
+  .catch(e => {
+    console.error(e);
+    showToast('Server connection failed.', 'error');
   });
-  
+
   closeModal();
-  renderAdminView('members');
-  showToast(`${fname} registered successfully!`);
 }
 
 // WITH GOLD PLAN LOCK
@@ -526,21 +536,44 @@ function saveEditMember(id) {
   closeModal();
 }
 
-// RENEW MEMBERSHIP
-async function renewMembership(id) {
-  if (!confirm('Renew this membership? The join date will be set to today and expiry to 1 month from now.')) return;
+// RENEW MEMBERSHIP WITH PLAN SELECTION
+function renewMembership(id) {
+  const numId = typeof id === 'string' ? parseInt(id, 10) : id;
+  const m = members.find(x => x.id === numId || x.id === id);
+  const memberName = m ? m.name : `Member #${id}`;
+
+  showModal(`
+    <h3 class="modal-title">Renew Membership: ${memberName}</h3>
+    <div class="form-group">
+      <label>Select Membership Plan</label>
+      <select id="renew-plan" class="form-input">
+        <option value="1">Silver - 1 Month (₱999)</option>
+        <option value="2">Silver - 3 Months (₱2,799)</option>
+        <option value="3">Gold - 1 Month (₱1,499)</option>
+        <option value="4">Gold - 12 Months (₱15,999)</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="confirmRenewMembership('${id}')">Renew Membership</button>
+    </div>
+  `);
+}
+
+async function confirmRenewMembership(id) {
+  const planId = document.getElementById('renew-plan').value;
   
   try {
     const res = await fetch('http://localhost/fitlife-gym/backend/api/renew_membership.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ member_id: id })
+      body: JSON.stringify({ member_id: id, plan_id: parseInt(planId) })
     });
     const result = await res.json();
     
     if (result.status === 'success') {
       showToast(result.message, 'success');
-      // Reload the live data from MySQL and instantly redraw the table
+      closeModal();
       await loadMembers();
       renderAdminView('members');
     } else {
@@ -579,6 +612,31 @@ async function deleteMember(id) {
 }
 
 // ── Member Booking Integration ──
+// RESTORE ARCHIVED MEMBER
+async function restoreMember(id) {
+  if (!confirm('Restore this member to active status?')) return;
+  
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/restore_member.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ member_id: id })
+    });
+    const result = await res.json();
+    
+    if (result.status === 'success') {
+      showToast(result.message, 'success');
+      await loadMembers();
+      renderAdminView('members');
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (e) { 
+    console.error(e); 
+    showToast('Server connection failed.', 'error'); 
+  }
+}
+
 function openBookClassModal(memberId) {
   const numId = typeof memberId === 'string' ? parseInt(memberId, 10) : memberId;
   const m = members.find(x => x.id === numId || x.id === memberId);
@@ -682,6 +740,7 @@ async function viewMetricsHistory(memberId) {
 
 // ── Trainers Tab ──
 let trainerEarningsFilter = 'all';
+let trainerStatusFilter = 'all';
 
 function formatPhpCurrency(value) {
   return new Intl.NumberFormat('en-PH', {
@@ -704,22 +763,29 @@ function renderTrainersTab() {
     `<option value="${k}" ${trainerEarningsFilter===k?'selected':''}>${monthLabels[k]}</option>`
   ).join('');
 
-  const rows = trainers.map(t => {
+  const trainerStatusOptions = ['all', 'active', 'archived'];
+  const trainerStatusOpts = trainerStatusOptions.map(s =>
+    `<option value="${s}" ${trainerStatusFilter === s ? 'selected' : ''}>${s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}</option>`
+  ).join('');
+
+  const filteredTrainers = trainers.filter(t => {
+    if (trainerStatusFilter === 'all') return t.status !== 'archived';
+    return t.status === trainerStatusFilter;
+  });
+
+  const rows = filteredTrainers.map(t => {
     const earnings = getTrainerEarnings(t, trainerEarningsFilter);
     const sessions = getFilteredSessions(t, trainerEarningsFilter);
     const label    = monthLabels[trainerEarningsFilter];
-    return `
-    <tr>
-      <td>${t.trainerId ?? t.id ?? '--'}</td>
-      <td><strong>${t.name}</strong></td>
-      <td>${t.specialization}</td>
-      <td>${formatPhpCurrency(t.ratePerSession)}</td>
-      <td>${sessions}</td>
-      <td class="earnings-green">
-        ${formatPhpCurrency(earnings)} <span class="filter-label">(${label})</span>
-      </td>
-      <td class="action-cell">
-        <button class="tbl-btn-edit" onclick="openEditTrainer('${t.id}')" title="Edit">
+
+    const actionButtons = t.status === 'archived'
+      ? `<button class="tbl-btn-edit" onclick="restoreTrainer('${t.id}')" title="Restore Trainer" style="color: var(--success);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+         </button>`
+      : `<button class="tbl-btn-edit" onclick="openEditTrainer('${t.id}')" title="Edit">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
             <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
@@ -732,15 +798,31 @@ function renderTrainersTab() {
             <path d="M10 11v6"/><path d="M14 11v6"/>
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
-        </button>
+        </button>`;
+
+    return `
+    <tr>
+      <td>${t.trainerId ?? t.id ?? '--'}</td>
+      <td><strong>${t.name}</strong></td>
+      <td>${t.specialization}</td>
+      <td>${formatPhpCurrency(t.ratePerSession)}</td>
+      <td>${sessions}</td>
+      <td class="earnings-green">
+        ${formatPhpCurrency(earnings)} <span class="filter-label">(${label})</span>
+      </td>
+      <td class="action-cell">
+        ${actionButtons}
       </td>
     </tr>`;
   }).join('');
 
   return `
   <div class="tab-header">
-    <h2 class="tab-title">Trainer Database</h2>
+    <h2 class="tab-title">Trainer Database ${trainerStatusFilter === 'archived' ? '<span style="color:var(--error)">(Archives)</span>' : ''}</h2>
     <div class="tab-header-right">
+      <select class="form-input form-select" onchange="changeTrainerStatusFilter(this.value)">
+        ${trainerStatusOpts}
+      </select>
       <span class="filter-label-text">Filter Earnings:</span>
       <select class="form-input form-select"
               onchange="changeEarningsFilter(this.value)">${opts}</select>
@@ -767,6 +849,36 @@ function renderTrainersTab() {
 function changeEarningsFilter(val) {
   trainerEarningsFilter = val;
   renderAdminView('trainers');
+}
+
+function changeTrainerStatusFilter(val) {
+  trainerStatusFilter = val;
+  renderAdminView('trainers');
+}
+
+// RESTORE ARCHIVED TRAINER
+async function restoreTrainer(id) {
+  if (!confirm('Restore this trainer to active status?')) return;
+  
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/restore_trainer.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trainer_id: id })
+    });
+    const result = await res.json();
+    
+    if (result.status === 'success') {
+      showToast(result.message, 'success');
+      await loadTrainers();
+      renderAdminView('trainers');
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (e) { 
+    console.error(e); 
+    showToast('Server connection failed.', 'error'); 
+  }
 }
 
 function openOnboardTrainer() {
@@ -966,6 +1078,7 @@ async function deleteTrainer(id) {
 // ── Classes Tab ──
 let classNameFilter = 'all';
 let classInstructorFilter = 'all';
+let classStatusFilter = 'all';
 
 function renderClassesTab() {
   const classNameOptions = ['all', ...new Set(classesData.map(c => c.name))];
@@ -979,26 +1092,32 @@ function renderClassesTab() {
     <option value="${instructor}" ${classInstructorFilter === instructor ? 'selected' : ''}>${instructor === 'all' ? 'All Instructors' : instructor}</option>
   `).join('');
 
-  const filteredClasses = classesData.filter(c =>
-    (classNameFilter === 'all' || c.name === classNameFilter) &&
-    (classInstructorFilter === 'all' || c.trainer === classInstructorFilter)
-  );
+  const classStatusOptions = ['all', 'active', 'archived'];
+  const classStatusOpts = classStatusOptions.map(s =>
+    `<option value="${s}" ${classStatusFilter === s ? 'selected' : ''}>${s === 'all' ? 'All Status' : s.charAt(0).toUpperCase() + s.slice(1)}</option>`
+  ).join('');
 
-  const rows = filteredClasses.map(c => `
-    <tr>
-      <td>${c.id ?? '--'}</td>
-      <td><strong>${c.name}</strong></td>
-      <td>${c.trainer}</td>
-      <td>
-        <span class="plan-badge-gold" style="background:var(--p50); color:var(--p600)">
-          ${c.startsAt}
-        </span>
-      </td>
-      <td>${c.duration} mins</td>
-      <td>${c.location}</td>
-      <td><span class="status-pill-active">${c.bookedCount} / ${c.capacity}</span></td>
-      <td class="action-cell">
-        <button class="tbl-btn-edit" onclick="viewClassBookings(${c.id})" title="View Bookings">
+  const filteredClasses = classesData.filter(c => {
+    const nameMatch = classNameFilter === 'all' || c.name === classNameFilter;
+    const instrMatch = classInstructorFilter === 'all' || c.trainer === classInstructorFilter;
+    let statusMatch = false;
+    if (classStatusFilter === 'all') {
+      statusMatch = c.status !== 'archived';
+    } else {
+      statusMatch = c.status === classStatusFilter;
+    }
+    return nameMatch && instrMatch && statusMatch;
+  });
+
+  const rows = filteredClasses.map(c => {
+    const actionButtons = c.status === 'archived'
+      ? `<button class="tbl-btn-edit" onclick="restoreClass(${c.id})" title="Restore Class" style="color: var(--success);">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+         </button>`
+      : `<button class="tbl-btn-edit" onclick="viewClassBookings(${c.id})" title="View Bookings">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
             <circle cx="9" cy="7" r="4"/>
@@ -1013,14 +1132,34 @@ function renderClassesTab() {
             <path d="M10 11v6"/><path d="M14 11v6"/>
             <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
           </svg>
-        </button>
+        </button>`;
+
+    return `
+    <tr>
+      <td>${c.id ?? '--'}</td>
+      <td><strong>${c.name}</strong></td>
+      <td>${c.trainer}</td>
+      <td>
+        <span class="plan-badge-gold" style="background:var(--p50); color:var(--p600)">
+          ${c.startsAt}
+        </span>
       </td>
-    </tr>`).join('');
+      <td>${c.duration} mins</td>
+      <td>${c.location}</td>
+      <td><span class="status-pill-active">${c.bookedCount} / ${c.capacity}</span></td>
+      <td class="action-cell">
+        ${actionButtons}
+      </td>
+    </tr>`;
+  }).join('');
 
   return `
   <div class="tab-header">
-    <h2 class="tab-title">Class Schedule</h2>
+    <h2 class="tab-title">Class Schedule ${classStatusFilter === 'archived' ? '<span style="color:var(--error)">(Archives)</span>' : ''}</h2>
     <div class="tab-header-right">
+      <select class="form-input form-select" onchange="changeClassStatusFilter(this.value)">
+        ${classStatusOpts}
+      </select>
       <select class="form-input form-select" onchange="changeClassNameFilter(this.value)">
         ${classNameOpts}
       </select>
@@ -1056,6 +1195,37 @@ function changeClassInstructorFilter(val) {
   classInstructorFilter = val;
   renderAdminView('classes');
 }
+
+function changeClassStatusFilter(val) {
+  classStatusFilter = val;
+  renderAdminView('classes');
+}
+
+// RESTORE ARCHIVED CLASS
+async function restoreClass(classId) {
+  if (!confirm('Restore this class to the active schedule?')) return;
+  
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/restore_class.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ class_id: classId })
+    });
+    const result = await res.json();
+    
+    if (result.status === 'success') {
+      showToast(result.message, 'success');
+      await loadClasses();
+      renderAdminView('classes');
+    } else {
+      showToast(result.message, 'error');
+    }
+  } catch (e) { 
+    console.error(e); 
+    showToast('Server connection failed.', 'error'); 
+  }
+}
+
 // ── Class Management Modals ──
 
 function openScheduleClass() {

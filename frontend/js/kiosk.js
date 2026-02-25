@@ -16,7 +16,7 @@ function handleRFIDScan() {
 
   // 1. Check if the RFID belongs to a Member
   const member = members.find(m =>
-    m.rfid.toUpperCase() === rfid || m.id.toUpperCase() === rfid);
+    String(m.rfid).toUpperCase() === rfid || String(m.id).toUpperCase() === rfid);
     
   if (member) {
     // SECURITY CHECK: Is the member banned?
@@ -53,7 +53,7 @@ function handleRFIDScan() {
 
   // 2. Check if the RFID belongs to a Trainer
   const trainer = trainers.find(t =>
-    t.rfid.toUpperCase() === rfid || t.id.toUpperCase() === rfid);
+    String(t.rfid).toUpperCase() === rfid || String(t.id).toUpperCase() === rfid);
     
   if (trainer) {
     toggleTrainerStatus(trainer);
@@ -170,7 +170,7 @@ function renderMemberCard(member) {
   const planBadgeLabel = member.plan === 'Gold' ? 'Premium' : 'Standard';
 
   let sessionsHTML = '';
-  if (member.plan === 'Gold' && member.sessions.length > 0) {
+  if (member.plan === 'Gold' && (member.sessions || []).length > 0) {
     sessionsHTML = member.sessions.map(s => `
       <div class="sess-card sess-card-gold">
         <div class="sess-row-top">

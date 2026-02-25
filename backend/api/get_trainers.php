@@ -6,10 +6,10 @@ header("Content-Type: application/json; charset=UTF-8");
 require_once '../config/db_mysql.php';
 
 try {
-    // SECURITY UPDATE: Soft Delete Filter added to WHERE clause
-    $query = "SELECT trainer_id, rfid, first_name, last_name, phone, specialization 
+    // Return all trainers (including archived) so the frontend can filter
+    $query = "SELECT trainer_id, rfid, first_name, last_name, phone, specialization, is_active 
               FROM trainers 
-              WHERE is_active = 1";
+              ORDER BY trainer_id ASC";
               
     $stmt = $pdo->prepare($query);
     $stmt->execute();

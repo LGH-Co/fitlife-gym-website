@@ -15,29 +15,44 @@ require_once '../config/db_mysql.php';
 
 $data = json_decode(file_get_contents("php://input"));
 
-if (!isset($data->member_id)) {
-    echo json_encode(["status" => "error", "message" => "Missing member ID"]);
+if (!isset($data->member_id) || !isset($data->plan_id)) {
+    echo json_encode(["status" => "error", "message" => "Missing member ID or plan ID"]);
     exit;
 }
 
 try {
-    // Parse the member ID (strip 'M' prefix if present)
     $raw_id = (int) str_replace('M', '', $data->member_id);
-    
-    // Calculate new dates
-    $new_join_date = date('Y-m-d'); // Today
-    $new_expiry_date = date('Y-m-d', strtotime('+1 month')); // 1 month from today
-    
-    // Update the member's join_date, expiry_date, and set status to active
+    $plan_id = (int) $data->plan_id;
+
+    // Look up the selected plan's duration
+    $planStmt = $pdo->prepare("SELECT membership_plan_id, plan_name, duration_months, price FROM membership_plan WHERE membership_plan_id = ?");
+    $planStmt->execute([$plan_id]);
+    $plan = $planStmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$plan) {
+        echo json_encode(["status" => "error", "message" => "Invalid plan selected."]);
+        exit;
+    }
+
+    $duration_months = (int) $plan['duration_months'];
+    $new_join_date = date('Y-m-d');
+    $new_expiry_date = date('Y-m-d', strtotime("+{$duration_months} months"));
+
+    // Update the member's dates and status
     $stmt = $pdo->prepare("UPDATE members SET join_date = ?, expiry_date = ?, status = 'active' WHERE member_id = ?");
     $stmt->execute([$new_join_date, $new_expiry_date, $raw_id]);
-    
+
+    // Insert or update the membership record for this member
+    $msStmt = $pdo->prepare("INSERT INTO membership (member_id, membership_plan_id, start_date, end_date, status) VALUES (?, ?, ?, ?, 'active')");
+    $msStmt->execute([$raw_id, $plan_id, $new_join_date, $new_expiry_date]);
+
     if ($stmt->rowCount() > 0) {
         echo json_encode([
             "status" => "success", 
-            "message" => "Membership renewed successfully!",
+            "message" => "Membership renewed with {$plan['plan_name']} plan!",
             "data" => [
                 "member_id" => $raw_id,
+                "plan" => $plan['plan_name'],
                 "join_date" => $new_join_date,
                 "expiry_date" => $new_expiry_date
             ]
