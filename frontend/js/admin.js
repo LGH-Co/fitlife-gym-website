@@ -727,6 +727,10 @@ function openOnboardTrainer() {
       <input id="t-phone" class="form-input" placeholder="e.g. 09171234567" inputmode="numeric" pattern="\\d{11}" maxlength="11"/>
     </div>
     <div class="form-group">
+      <label>Email Address</label>
+      <input id="t-email" class="form-input" placeholder="trainer@example.com"/>
+    </div>
+    <div class="form-group">
       <label>Specialization</label>
       <select id="t-spec" class="form-input">${specOpts}</select>
     </div>
@@ -740,10 +744,11 @@ function openOnboardTrainer() {
     </div>`);
 }
 
-function saveNewTrainer() {
+async function saveNewTrainer() {
   const name = document.getElementById('t-name').value.trim();
   const rfid = document.getElementById('t-rfid').value.trim();
   const phone = document.getElementById('t-phone').value.trim();
+  const email = document.getElementById('t-email').value.trim();
   const spec = document.getElementById('t-spec').value;
   const rate = document.getElementById('t-rate').value.trim();
 
@@ -753,7 +758,7 @@ function saveNewTrainer() {
   const rateRegex = /^\d+(\.\d{1,2})?$/; // Only positive numbers or decimals
 
   // ── VALIDATION PHASE ──
-  if (!name || !rfid || !rate) {
+  if (!name || !rfid || !rate || !email) {
     showToast('Please fill all required fields.', 'error'); return;
   }
   if (!nameRegex.test(name)) {
@@ -762,6 +767,9 @@ function saveNewTrainer() {
   if (!phoneRegex.test(phone)) {
     showToast('Phone must be 11 digits starting with 09.', 'error'); return;
   }
+  if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(email)) {
+    showToast('Please provide a valid email address.', 'error'); return;
+  }
   if (!rateRegex.test(rate)) {
     showToast('Rate per Session must be a valid number (e.g., 500 or 500.50).', 'error'); return;
   }
@@ -769,17 +777,35 @@ function saveNewTrainer() {
     showToast('Trainer ID/RFID already exists.', 'error'); return;
   }
 
-  // ── PROCEED TO SAVE ──
-  trainers.push({
-    id: rfid.toUpperCase(), rfid: rfid.toUpperCase(),
-    name, phone, specialization: spec, ratePerSession: parseFloat(rate),
-    loggedIn: false, clockInTime: null,
-    sessions: [], totalSessions: 0, earningsByMonth: {}
-  });
+  try {
+    const res = await fetch('http://localhost/fitlife-gym/backend/api/add_trainer.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        rfid,
+        phone,
+        email,
+        specialization: spec,
+        hire_date: new Date().toISOString().split('T')[0]
+      })
+    });
 
-  closeModal();
-  renderAdminView('trainers');
-  showToast(`${name} onboarded successfully!`);
+    const result = await res.json();
+
+    if (result.status !== 'success') {
+      showToast(result.message || 'Failed to onboard trainer.', 'error');
+      return;
+    }
+
+    await loadTrainers();
+    closeModal();
+    renderAdminView('trainers');
+    showToast(`${name} onboarded successfully!`);
+  } catch (error) {
+    console.error(error);
+    showToast('Server connection failed.', 'error');
+  }
 }
 
 function openEditTrainer(id) {
@@ -951,7 +977,7 @@ function changeClassInstructorFilter(val) {
 
 function openScheduleClass() {
   const trainerOpts = trainers.map(t => {
-      const dbId = parseInt(t.id.replace('T', ''));
+      const dbId = parseInt(t.trainerId ?? t.id);
       return `<option value="${dbId}">${t.name} (${t.specialization})</option>`;
   }).join('');
   
