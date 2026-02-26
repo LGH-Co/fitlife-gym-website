@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS members (
     member_id INT AUTO_INCREMENT PRIMARY KEY,
     rfid BIGINT UNSIGNED NOT NULL UNIQUE,
     first_name VARCHAR(50) NOT NULL,
-    middle_name VARCHAR(50),
     last_name VARCHAR(50) NOT NULL,
+    full_name VARCHAR(100) GENERATED ALWAYS AS (CONCAT(first_name, ' ', last_name)) STORED,
     phone VARCHAR(20),
     email VARCHAR(120),
     join_date DATE NOT NULL,
@@ -25,15 +25,20 @@ CREATE TABLE IF NOT EXISTS members (
 CREATE TABLE IF NOT EXISTS trainers (
     trainer_id INT AUTO_INCREMENT PRIMARY KEY,
     rfid BIGINT UNSIGNED NOT NULL UNIQUE,
+    admin_id INT NULL,
     first_name VARCHAR(50) NOT NULL,
-    middle_name VARCHAR(50),
     last_name VARCHAR(50) NOT NULL,
+    full_name VARCHAR(100) GENERATED ALWAYS AS (CONCAT(first_name, ' ', last_name)) STORED,
     phone VARCHAR(20),
     email VARCHAR(120),
     specialization VARCHAR(80),
     hire_date DATE NOT NULL,
     is_active TINYINT(1) NOT NULL DEFAULT 1,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_trainers_admin
+        FOREIGN KEY (admin_id) REFERENCES admin_account(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
     INDEX idx_trainers_email (email)
 );
 
@@ -70,6 +75,7 @@ CREATE TABLE IF NOT EXISTS membership_plan (
 CREATE TABLE IF NOT EXISTS membership (
     membership_id INT AUTO_INCREMENT PRIMARY KEY,
     member_id INT NOT NULL,
+    admin_id INT NULL,
     membership_plan_id INT NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
@@ -79,6 +85,10 @@ CREATE TABLE IF NOT EXISTS membership (
         FOREIGN KEY (member_id) REFERENCES members(member_id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
+	CONSTRAINT fk_membership_admin
+        FOREIGN KEY (admin_id) REFERENCES admin_account(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
     CONSTRAINT fk_membership_plan
         FOREIGN KEY (membership_plan_id) REFERENCES membership_plan(membership_plan_id)
         ON UPDATE CASCADE
@@ -109,6 +119,7 @@ CREATE TABLE IF NOT EXISTS classes (
 CREATE TABLE IF NOT EXISTS bookings (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
     member_id INT NOT NULL,
+    admin_id INT NULL,
     class_id INT NOT NULL,
     booked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status ENUM('booked','cancelled','attended','no_show') NOT NULL DEFAULT 'booked',
@@ -117,6 +128,10 @@ CREATE TABLE IF NOT EXISTS bookings (
         FOREIGN KEY (member_id) REFERENCES members(member_id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
+	CONSTRAINT fk_booking_admin
+        FOREIGN KEY (admin_id) REFERENCES admin_account(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
     CONSTRAINT fk_booking_class
         FOREIGN KEY (class_id) REFERENCES classes(class_id)
         ON UPDATE CASCADE
@@ -152,6 +167,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS payments (
     payment_id INT AUTO_INCREMENT PRIMARY KEY,
     member_id INT NOT NULL,
+    admin_id INT NULL,
     membership_id INT NULL,
     booking_id INT NULL,
     session_id INT NULL,
@@ -163,6 +179,10 @@ CREATE TABLE IF NOT EXISTS payments (
         FOREIGN KEY (member_id) REFERENCES members(member_id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
+	CONSTRAINT fk_payment_admin
+        FOREIGN KEY (admin_id) REFERENCES admin_account(admin_id)
+        ON UPDATE CASCADE
+        ON DELETE SET NULL,
     CONSTRAINT fk_payment_membership
         FOREIGN KEY (membership_id) REFERENCES membership(membership_id)
         ON UPDATE CASCADE
@@ -213,10 +233,6 @@ CREATE TABLE IF NOT EXISTS body_metrics (
         FOREIGN KEY (member_id) REFERENCES members(member_id)
         ON UPDATE CASCADE
         ON DELETE CASCADE,
-    CONSTRAINT fk_body_metrics_rfid
-        FOREIGN KEY (rfid) REFERENCES members(rfid)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
     INDEX idx_body_metrics_member (member_id),
     INDEX idx_body_metrics_rfid (rfid)
 );
@@ -233,42 +249,8 @@ CREATE TABLE IF NOT EXISTS health_history (
         FOREIGN KEY (member_id) REFERENCES members(member_id)
         ON UPDATE CASCADE
         ON DELETE CASCADE,
-    CONSTRAINT fk_health_history_rfid
-        FOREIGN KEY (rfid) REFERENCES members(rfid)
-        ON UPDATE CASCADE
-        ON DELETE CASCADE,
     INDEX idx_health_history_member (member_id),
     INDEX idx_health_history_rfid (rfid)
 );
 
-CREATE TABLE IF NOT EXISTS attendance_logs (
-    attendance_log_id INT AUTO_INCREMENT PRIMARY KEY,
-    role ENUM('Member','Trainer') NOT NULL,
-    member_id INT NULL,
-    trainer_id INT NULL,
-    rfid BIGINT UNSIGNED NOT NULL,
-    action VARCHAR(30) NOT NULL,
-    status VARCHAR(30),
-    timestamp DATETIME NOT NULL,
-    CONSTRAINT fk_attendance_member
-        FOREIGN KEY (member_id) REFERENCES members(member_id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL,
-    CONSTRAINT fk_attendance_trainer
-        FOREIGN KEY (trainer_id) REFERENCES trainers(trainer_id)
-        ON UPDATE CASCADE
-        ON DELETE SET NULL,
-    INDEX idx_attendance_rfid (rfid),
-    INDEX idx_attendance_timestamp (timestamp)
-);
 
-CREATE TABLE IF NOT EXISTS admin_audit_logs (
-    audit_id VARCHAR(40) PRIMARY KEY,
-    timestamp DATETIME NOT NULL,
-    actor_id VARCHAR(40) NOT NULL,
-    action VARCHAR(60) NOT NULL,
-    target_rfid BIGINT UNSIGNED NULL,
-    details JSON,
-    INDEX idx_audit_timestamp (timestamp),
-    INDEX idx_audit_target_rfid (target_rfid)
-);
